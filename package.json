@@ -17,9 +17,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:seed:leads": "tsx scripts/seed-leads.ts",
     "db:seed:customers": "tsx scripts/seed-customers.ts",
-    "auth:bootstrap": "tsx scripts/bootstrap-owner.ts",
-    "deploy": "npm run build && wrangler deploy",
-    "deploy:staging": "npm run build && wrangler deploy --env staging"
+    "auth:bootstrap": "tsx scripts/bootstrap-owner.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
