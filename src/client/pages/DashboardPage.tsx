@@ -3,10 +3,12 @@ import { Link } from "react-router-dom";
 import {
   ArrowRight,
   BarChart3,
+  Bell,
   Briefcase,
   Building2,
   CalendarCheck2,
   CalendarClock,
+  CheckCircle2,
   FileText,
   FolderKanban,
   Plus,
@@ -34,6 +36,7 @@ import { UPCOMING_MODULES } from "../../shared/constants/modules";
 import { PERMISSIONS } from "../../shared/types/permissions";
 import { useAuth } from "../hooks/useAuth";
 import { dashboardService } from "../services/dashboard.service";
+import { tasksService } from "../services/tasks.service";
 import { hasPermission } from "../lib/permissions";
 import {
   firstName,
@@ -57,6 +60,7 @@ import {
   StatCard,
 } from "../components/ui";
 import { StageBadge } from "../components/leads";
+import { TelegramStatusCard } from "../components/tasks";
 import {
   CustomerStatusBadge,
   CustomerTimeline,
@@ -160,6 +164,23 @@ export function DashboardPage() {
     queryKey: ["dashboard", "stats"],
     queryFn: () => dashboardService.stats(),
   });
+  const canViewTasks = hasPermission(user, PERMISSIONS.TASKS_READ);
+  const canManageSettings = hasPermission(user, PERMISSIONS.SETTINGS_MANAGE);
+  const taskStatsQuery = useQuery({
+    queryKey: ["dashboard", "task-stats"],
+    queryFn: () => dashboardService.taskStats(),
+    enabled: canViewTasks,
+  });
+  const myTodayQuery = useQuery({
+    queryKey: ["tasks", "dashboard", "my-today"],
+    queryFn: () => tasksService.list({ scope: "my", page: 1, pageSize: 5, sortBy: "due_at", sortDir: "asc" }),
+    enabled: canViewTasks,
+  });
+  const upcomingFollowUpsQuery = useQuery({
+    queryKey: ["tasks", "dashboard", "follow-ups"],
+    queryFn: () => tasksService.list({ scope: "upcoming", taskType: "follow_up" as any, page: 1, pageSize: 5, sortBy: "due_at", sortDir: "asc" }),
+    enabled: canViewTasks,
+  });
 
   if (!user) {
     return null;
@@ -187,7 +208,6 @@ export function DashboardPage() {
   const canCreateEmployees = hasPermission(user, PERMISSIONS.USERS_CREATE);
   const canCreateLeads = hasPermission(user, PERMISSIONS.LEADS_CREATE);
   const canViewAudit = hasPermission(user, PERMISSIONS.AUDIT_READ);
-  const canManageSettings = hasPermission(user, PERMISSIONS.SETTINGS_MANAGE);
   const canViewCustomers = hasPermission(user, PERMISSIONS.CUSTOMERS_READ);
 
   const maxRoleCount = Math.max(
@@ -244,6 +264,16 @@ export function DashboardPage() {
                 Follow-ups
               </Button>
             </Link>
+            {canViewTasks ? (
+              <Link to="/tasks">
+                <Button
+                  variant="outline"
+                  leftIcon={<CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
+                >
+                  Tasks
+                </Button>
+              </Link>
+            ) : null}
             {canViewAudit ? (
               <Link to="/audit-logs">
                 <Button
@@ -285,7 +315,7 @@ export function DashboardPage() {
             label="Total leads"
             value={leads.counts.total}
             icon={<Target className="h-4 w-4" aria-hidden="true" />}
-            hint={`${leads.counts.notContacted} not contacted · ${leads.counts.contacted} contacted`}
+            hint={`${leads.counts.notContacted} not contacted Â· ${leads.counts.contacted} contacted`}
           />
           <StatCard
             label="Won leads"
@@ -307,6 +337,58 @@ export function DashboardPage() {
           />
         </div>
       </section>
+
+      {canViewTasks && taskStatsQuery.data ? (
+        <section aria-labelledby="task-snapshot-heading">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 id="task-snapshot-heading" className="text-sm font-semibold text-slate-900">Tasks & reminders</h2>
+              <p className="text-xs text-slate-500">{taskStatsQuery.data.scope === "personal" ? "Tasks in your scope." : "Organization task workload."}</p>
+            </div>
+            <Link to="/tasks" className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800">All tasks <ArrowRight className="h-3 w-3" aria-hidden="true" /></Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="My tasks today" value={taskStatsQuery.data.dueTodayTasks} icon={<CheckCircle2 className="h-4 w-4" aria-hidden="true" />} hint={`${taskStatsQuery.data.pendingTasks} pending total`} />
+            <StatCard label="Overdue tasks" value={taskStatsQuery.data.overdueTasks} icon={<Bell className="h-4 w-4" aria-hidden="true" />} hint="Past due, not completed/cancelled" />
+            <StatCard label="Upcoming follow-ups" value={taskStatsQuery.data.followUpTasks} icon={<CalendarClock className="h-4 w-4" aria-hidden="true" />} hint={`${taskStatsQuery.data.upcomingTasks} upcoming tasks`} />
+            <StatCard label="Team summary" value={taskStatsQuery.data.totalTasks} icon={<Briefcase className="h-4 w-4" aria-hidden="true" />} hint={`${taskStatsQuery.data.completedTasks} completed Â· ${taskStatsQuery.data.inProgressTasks} in progress`} />
+          </div>
+          <div className="mt-4 grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader title="My upcoming tasks" description="Nearest tasks in your scope." action={<Link to="/tasks/my" className="text-xs font-medium text-brand-700 hover:text-brand-800">My tasks</Link>} />
+              <CardBody>
+                {myTodayQuery.isLoading ? <Skeleton className="h-24 rounded-lg" /> : (myTodayQuery.data?.items.length ?? 0) === 0 ? <p className="text-sm text-slate-500">No upcoming tasks in your scope.</p> : (
+                  <ul className="space-y-2">
+                    {myTodayQuery.data!.items.map((task) => (
+                      <li key={task.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-800">{task.taskNumber} Â· {task.title}</p>
+                          <p className="text-xs text-slate-500">{task.dueAt ? formatCrmDateTime(task.dueAt) : "No due date"} Â· {task.priority}</p>
+                        </div>
+                        <Link to="/tasks" className="text-xs font-medium text-brand-700 hover:text-brand-800">Open</Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="mt-4 border-t border-slate-100 pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Upcoming follow-ups</p>
+                  {(upcomingFollowUpsQuery.data?.items.length ?? 0) === 0 ? <p className="text-sm text-slate-500">No upcoming follow-up tasks.</p> : (
+                    <ul className="space-y-1.5">
+                      {upcomingFollowUpsQuery.data!.items.map((task) => (
+                        <li key={task.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                          <span className="truncate text-slate-700">{task.title}</span>
+                          <span className="ml-3 shrink-0 text-xs text-slate-500">{task.dueAt ? formatCrmDateTime(task.dueAt) : "—"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+            {canManageSettings ? <TelegramStatusCard compact /> : <Card><CardHeader title="Telegram reminders" description="Reminder delivery status." /><CardBody><p className="text-sm text-slate-500">Notification settings are managed by the owner.</p></CardBody></Card>}
+          </div>
+        </section>
+      ) : null}
 
       {canViewCustomers ? (
         <section aria-labelledby="customer-snapshot-heading">

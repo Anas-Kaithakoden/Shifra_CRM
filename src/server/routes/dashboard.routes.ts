@@ -9,6 +9,7 @@ import {
   getLeadDashboardStats,
 } from "../services/dashboard.service";
 import { getCustomerDashboardStatsForActor } from "../services/customers.service";
+import { getTaskDashboardStatsForActor } from "../services/tasks.service";
 
 export const dashboardRoutes = new Hono<AppEnv>();
 
@@ -41,6 +42,17 @@ dashboardRoutes.get(
   async (c) => {
     const db = createDb(c.env.DB);
     const stats = await getCustomerDashboardStatsForActor(db, c.get("user"));
+    return ok(c, stats);
+  },
+);
+
+dashboardRoutes.get(
+  "/task-stats",
+  requireAuth,
+  requirePermission(PERMISSIONS.DASHBOARD_VIEW),
+  async (c) => {
+    const db = createDb(c.env.DB);
+    const stats = await getTaskDashboardStatsForActor(db, c.get("user"));
     return ok(c, stats);
   },
 );

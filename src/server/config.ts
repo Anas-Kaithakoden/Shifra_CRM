@@ -7,6 +7,9 @@ export interface Env {
   SESSION_TTL_HOURS?: string;
   SESSION_IDLE_MINUTES?: string;
   TEST_MIGRATIONS?: Array<{ name: string; queries: string[] }>;
+  TELEGRAM_BOT_TOKEN?: string;
+  TELEGRAM_CHAT_ID?: string;
+  TELEGRAM_REMINDERS_ENABLED?: string;
 }
 
 export interface SessionContext {

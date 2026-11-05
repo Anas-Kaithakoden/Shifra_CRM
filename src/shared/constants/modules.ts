@@ -15,11 +15,6 @@ export const UPCOMING_MODULES: readonly UpcomingModule[] = [
     description: "Track delivery, milestones and project ownership.",
   },
   {
-    key: "tasks",
-    label: "Tasks & Follow-ups",
-    description: "Assign work and keep follow-ups from slipping.",
-  },
-  {
     key: "payments",
     label: "Payments",
     description: "Record invoices, payments and outstanding balances.",

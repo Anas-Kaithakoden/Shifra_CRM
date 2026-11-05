@@ -106,6 +106,33 @@ const CUSTOMER_NAV_ITEMS: NavItem[] = [
   },
 ];
 
+const TASK_NAV_ITEMS: NavItem[] = [
+  {
+    label: "All Tasks",
+    to: "/tasks",
+    icon: Briefcase,
+    permission: "tasks:read",
+  },
+  {
+    label: "My Tasks",
+    to: "/tasks/my",
+    icon: UserCheck,
+    permission: "tasks:read",
+  },
+  {
+    label: "Follow-ups",
+    to: "/tasks/follow-ups",
+    icon: CalendarClock,
+    permission: "tasks:read",
+  },
+  {
+    label: "Notifications",
+    to: "/settings/notifications",
+    icon: Settings,
+    permission: "settings:manage",
+  },
+];
+
 const UPCOMING_ICONS: Record<string, typeof Target> = {
   projects: FolderKanban,
   tasks: Briefcase,
@@ -130,6 +157,9 @@ export function Sidebar({
     (item) => !item.permission || user.permissions.includes(item.permission),
   );
   const visibleCustomerItems = CUSTOMER_NAV_ITEMS.filter(
+    (item) => !item.permission || user.permissions.includes(item.permission),
+  );
+  const visibleTaskItems = TASK_NAV_ITEMS.filter(
     (item) => !item.permission || user.permissions.includes(item.permission),
   );
   const location = useLocation();
@@ -270,6 +300,39 @@ export function Sidebar({
                           cn(
                             "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
                             isCustomerItemActive(item.to, isActive)
+                              ? "bg-brand-50 text-brand-800"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                          )
+                        }
+                      >
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        {item.label}
+                      </NavLink>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          ) : null}
+
+          {visibleTaskItems.length > 0 ? (
+            <>
+              <p className="mt-6 px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                Tasks & Follow-ups
+              </p>
+              <ul className="space-y-1">
+                {visibleTaskItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <li key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        end={item.to === "/tasks"}
+                        onClick={onClose}
+                        className={({ isActive }) =>
+                          cn(
+                            "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
+                            isActive
                               ? "bg-brand-50 text-brand-800"
                               : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                           )

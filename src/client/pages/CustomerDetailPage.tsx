@@ -63,6 +63,7 @@ import {
   CustomerTypeBadge,
   LinkLeadDialog,
 } from "../components/customers";
+import { EntityTasksSection } from "../components/tasks";
 import { cn } from "../lib/cn";
 
 type DetailTab = "overview" | "contacts" | "leads" | "service" | "activity";
@@ -604,6 +605,13 @@ export function CustomerDetailPage() {
                   )}
                 </CardBody>
               </Card>
+
+              {hasPermission(user, PERMISSIONS.TASKS_READ) ? (
+                <EntityTasksSection
+                  customerId={id}
+                  canCreate={canAddNotes && hasPermission(user, PERMISSIONS.TASKS_CREATE)}
+                />
+              ) : null}
             </>
           ) : null}
 

@@ -554,6 +554,86 @@ export const customerActivities = sqliteTable(
   ],
 );
 
+export const tasks = sqliteTable(
+  "tasks",
+  {
+    id: text("id").primaryKey(),
+    taskNumber: text("task_number").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    taskType: text("task_type").notNull().default("internal"),
+    status: text("status").notNull().default("pending"),
+    priority: text("priority").notNull().default("medium"),
+    assignedTo: text("assigned_to").references(() => users.id, { onDelete: "set null" }),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    leadId: text("lead_id").references(() => leads.id, { onDelete: "set null" }),
+    customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    projectId: text("project_id"),
+    dueAt: text("due_at"),
+    completedAt: text("completed_at"),
+    cancelledAt: text("cancelled_at"),
+    reminderEnabled: integer("reminder_enabled", { mode: "boolean" }).notNull().default(false),
+    reminderMinutesBefore: integer("reminder_minutes_before"),
+    reminderSentAt: text("reminder_sent_at"),
+    reminderAttemptedAt: text("reminder_attempted_at"),
+    reminderStatus: text("reminder_status").notNull().default("pending"),
+    reminderError: text("reminder_error"),
+    recurrenceType: text("recurrence_type"),
+    recurrenceInterval: integer("recurrence_interval"),
+    recurrenceEndAt: text("recurrence_end_at"),
+    recurrenceGroupId: text("recurrence_group_id"),
+    createdAt: text("created_at").notNull().default(nowSql),
+    updatedAt: text("updated_at").notNull().default(nowSql),
+  },
+  (table) => [
+    uniqueIndex("tasks_task_number_unique").on(table.taskNumber),
+    index("tasks_assigned_to_idx").on(table.assignedTo),
+    index("tasks_status_idx").on(table.status),
+    index("tasks_type_idx").on(table.taskType),
+    index("tasks_due_at_idx").on(table.dueAt),
+    index("tasks_lead_id_idx").on(table.leadId),
+    index("tasks_customer_id_idx").on(table.customerId),
+    index("tasks_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const taskNumberSequence = sqliteTable("task_number_sequence", {
+  id: integer("id").primaryKey(),
+  nextValue: integer("next_value").notNull().default(1),
+});
+
+export const taskActivities = sqliteTable(
+  "task_activities",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    activityType: text("activity_type").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    metadata: text("metadata"),
+    createdAt: text("created_at").notNull().default(nowSql),
+  },
+  (table) => [
+    index("task_activities_task_id_idx").on(table.taskId),
+    index("task_activities_user_id_idx").on(table.userId),
+    index("task_activities_created_at_idx").on(table.createdAt),
+    check(
+      "task_activities_metadata_json_check",
+      sql`${table.metadata} is null or json_valid(${table.metadata})`,
+    ),
+  ],
+);
+
+export type TaskRow = typeof tasks.$inferSelect;
+export type NewTaskRow = typeof tasks.$inferInsert;
+export type TaskActivityRow = typeof taskActivities.$inferSelect;
+export type NewTaskActivityRow = typeof taskActivities.$inferInsert;
+
 export type UserRow = typeof users.$inferSelect;
 export type NewUserRow = typeof users.$inferInsert;
 export type SessionRow = typeof sessions.$inferSelect;

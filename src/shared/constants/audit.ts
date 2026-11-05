@@ -40,6 +40,14 @@ export const AUDIT_ACTIONS = {
   CUSTOMER_ACTIVITY_LOGGED: "customer.activity_logged",
   CUSTOMER_LEAD_LINKED: "customer.lead_linked",
   CUSTOMER_LEAD_CONVERTED: "customer.lead_converted",
+  TASK_CREATED: "task.created",
+  TASK_UPDATED: "task.updated",
+  TASK_ASSIGNED: "task.assigned",
+  TASK_STATUS_CHANGED: "task.status_changed",
+  TASK_COMPLETED: "task.completed",
+  TASK_REOPENED: "task.reopened",
+  TASK_CANCELLED: "task.cancelled",
+  TASK_RESCHEDULED: "task.rescheduled",
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
@@ -86,6 +94,14 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   [AUDIT_ACTIONS.CUSTOMER_ACTIVITY_LOGGED]: "Logged customer activity",
   [AUDIT_ACTIONS.CUSTOMER_LEAD_LINKED]: "Linked lead to customer",
   [AUDIT_ACTIONS.CUSTOMER_LEAD_CONVERTED]: "Converted lead to customer",
+  [AUDIT_ACTIONS.TASK_CREATED]: "Created task",
+  [AUDIT_ACTIONS.TASK_UPDATED]: "Updated task",
+  [AUDIT_ACTIONS.TASK_ASSIGNED]: "Assigned task",
+  [AUDIT_ACTIONS.TASK_STATUS_CHANGED]: "Changed task status",
+  [AUDIT_ACTIONS.TASK_COMPLETED]: "Completed task",
+  [AUDIT_ACTIONS.TASK_REOPENED]: "Reopened task",
+  [AUDIT_ACTIONS.TASK_CANCELLED]: "Cancelled task",
+  [AUDIT_ACTIONS.TASK_RESCHEDULED]: "Rescheduled task",
 };
 
 export function auditActionLabel(action: string): string {

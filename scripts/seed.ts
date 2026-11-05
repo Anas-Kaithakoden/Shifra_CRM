@@ -144,6 +144,8 @@ async function main(): Promise<void> {
 
   runD1File(statements.join("\n"), { local: true });
 
+  seedTasksLocal(byEmail);
+
   console.log("");
   console.log("Development data seeded into the LOCAL D1 database.");
   console.log("");
@@ -157,6 +159,167 @@ async function main(): Promise<void> {
   console.log("");
   console.log("These credentials are for local development only.");
   console.log("Never use them in staging or production.");
+}
+
+function seedTasksLocal(byEmail: Map<string, { id: string; email: string; role: string }>): void {
+  try {
+    const hasTasks = runD1Query<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'tasks' LIMIT 1;",
+      { local: true },
+    );
+    if (hasTasks.length === 0) return;
+  } catch {
+    return;
+  }
+
+  const owner = byEmail.get("owner@shifranuha.dev");
+  const admin = byEmail.get("admin@shifranuha.dev");
+  const employee = byEmail.get("employee@shifranuha.dev");
+  if (!owner) return;
+
+  const now = Date.now();
+  const iso = (ms: number) => new Date(ms).toISOString();
+  const day = 24 * 60 * 60 * 1000;
+
+  const demo = [
+    {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbb0001",
+      num: "SN-TASK-9001",
+      title: "Demo: overdue internal follow-up",
+      description: "Seeded overdue task for dashboard/reminder testing.",
+      task_type: "follow_up",
+      status: "pending",
+      priority: "high",
+      assigned_to: owner.id,
+      created_by: owner.id,
+      due_at: iso(now - 2 * day),
+      completed_at: null,
+      cancelled_at: null,
+      reminder_enabled: 1,
+      reminder_minutes_before: 30,
+      reminder_status: "pending",
+      recurrence_type: null,
+      recurrence_interval: null,
+      recurrence_end_at: null,
+      recurrence_group_id: null,
+    },
+    {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbb0002",
+      num: "SN-TASK-9002",
+      title: "Demo: due today review",
+      description: "Seeded task due today.",
+      task_type: "review",
+      status: "pending",
+      priority: "medium",
+      assigned_to: admin?.id ?? owner.id,
+      created_by: owner.id,
+      due_at: iso(now + 2 * 60 * 60 * 1000),
+      completed_at: null,
+      cancelled_at: null,
+      reminder_enabled: 1,
+      reminder_minutes_before: 15,
+      reminder_status: "pending",
+      recurrence_type: null,
+      recurrence_interval: null,
+      recurrence_end_at: null,
+      recurrence_group_id: null,
+    },
+    {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbb0003",
+      num: "SN-TASK-9003",
+      title: "Demo: upcoming call",
+      description: "Seeded upcoming task.",
+      task_type: "call",
+      status: "in_progress",
+      priority: "low",
+      assigned_to: employee?.id ?? owner.id,
+      created_by: admin?.id ?? owner.id,
+      due_at: iso(now + 3 * day),
+      completed_at: null,
+      cancelled_at: null,
+      reminder_enabled: 0,
+      reminder_minutes_before: null,
+      reminder_status: "skipped",
+      recurrence_type: null,
+      recurrence_interval: null,
+      recurrence_end_at: null,
+      recurrence_group_id: null,
+    },
+    {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbb0004",
+      num: "SN-TASK-9004",
+      title: "Demo: completed follow-up",
+      description: "Seeded completed task.",
+      task_type: "follow_up",
+      status: "completed",
+      priority: "urgent",
+      assigned_to: owner.id,
+      created_by: owner.id,
+      due_at: iso(now - 1 * day),
+      completed_at: iso(now - 12 * 60 * 60 * 1000),
+      cancelled_at: null,
+      reminder_enabled: 1,
+      reminder_minutes_before: 10,
+      reminder_status: "sent",
+      recurrence_type: null,
+      recurrence_interval: null,
+      recurrence_end_at: null,
+      recurrence_group_id: null,
+    },
+    {
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbb0005",
+      num: "SN-TASK-9005",
+      title: "Demo: recurring daily check-in",
+      description: "Seeded recurring task with recurrence group.",
+      task_type: "internal",
+      status: "pending",
+      priority: "medium",
+      assigned_to: owner.id,
+      created_by: owner.id,
+      due_at: iso(now + 1 * day),
+      completed_at: null,
+      cancelled_at: null,
+      reminder_enabled: 1,
+      reminder_minutes_before: 60,
+      reminder_status: "pending",
+      recurrence_type: "daily",
+      recurrence_interval: 1,
+      recurrence_end_at: iso(now + 30 * day),
+      recurrence_group_id: "cccccccc-cccc-4ccc-8ccc-cccccccc0001",
+    },
+  ] as const;
+
+  const statements: string[] = [];
+  for (const t of demo) {
+    statements.push(
+      [
+        "INSERT OR IGNORE INTO tasks (",
+        "id, task_number, title, description, task_type, status, priority, assigned_to, created_by, lead_id, customer_id, project_id,",
+        "due_at, completed_at, cancelled_at, reminder_enabled, reminder_minutes_before, reminder_sent_at, reminder_attempted_at, reminder_status, reminder_error,",
+        "recurrence_type, recurrence_interval, recurrence_end_at, recurrence_group_id, created_at, updated_at",
+        ") VALUES (",
+        [
+          sqlString(t.id), sqlString(t.num), sqlString(t.title), sqlString(t.description), sqlString(t.task_type), sqlString(t.status), sqlString(t.priority),
+          sqlString(t.assigned_to), sqlString(t.created_by), "NULL", "NULL", "NULL",
+          sqlString(t.due_at), t.completed_at ? sqlString(t.completed_at) : "NULL", t.cancelled_at ? sqlString(t.cancelled_at) : "NULL",
+          String(t.reminder_enabled), t.reminder_minutes_before == null ? "NULL" : String(t.reminder_minutes_before), t.status === "completed" ? sqlString(t.completed_at!) : "NULL", "NULL", sqlString(t.reminder_status), "NULL",
+          t.recurrence_type ? sqlString(t.recurrence_type) : "NULL", t.recurrence_interval == null ? "NULL" : String(t.recurrence_interval), t.recurrence_end_at ? sqlString(t.recurrence_end_at) : "NULL", t.recurrence_group_id ? sqlString(t.recurrence_group_id) : "NULL",
+          sqlString(iso(now - 60 * 60 * 1000)), sqlString(iso(now - 30 * 60 * 1000)),
+        ].join(", "),
+        ");",
+      ].join("\n"),
+    );
+    statements.push(
+      `INSERT OR IGNORE INTO task_activities (id, task_id, user_id, activity_type, title, description, metadata, created_at) VALUES (${sqlString(`dddddddd-dddd-4ddd-8ddd-dddddddd${t.num.slice(-4)}`)}, ${sqlString(t.id)}, ${sqlString(t.created_by)}, 'created', 'Task created', ${sqlString(`Seeded demo task ${t.num}`)}, ${sqlJson({ seeded: true, taskNumber: t.num })}, ${sqlString(iso(now - 60 * 60 * 1000))});`,
+    );
+  }
+
+  statements.push(
+    "INSERT INTO task_number_sequence (id, next_value) VALUES (1, 9100) ON CONFLICT(id) DO UPDATE SET next_value = CASE WHEN excluded.next_value > task_number_sequence.next_value THEN excluded.next_value ELSE task_number_sequence.next_value END;",
+  );
+
+  runD1File(statements.join("\n"), { local: true });
+  console.log("  Demo tasks seeded (SN-TASK-9001..9005): overdue, today, upcoming, completed, recurring.");
 }
 
 main().catch((error: unknown) => {

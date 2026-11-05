@@ -31,6 +31,7 @@ import {
   type LeadWithRelations,
 } from "../db/queries/leads.queries";
 import { getNextPendingFollowUpAt, insertFollowUp } from "../db/queries/follow-ups.queries";
+import { findEarliestPendingTaskDueAt } from "../db/queries/tasks.queries";
 import type { LeadActivityRow, LeadRow } from "../db/schema";
 import { badRequest, conflict, forbidden, notFound } from "../lib/errors";
 import { randomHex } from "../lib/encoding";
@@ -978,7 +979,14 @@ export async function syncLeadNextFollowUpAt(
   db: AppDatabase,
   leadId: string,
 ): Promise<void> {
-  const next = await getNextPendingFollowUpAt(db, leadId);
+  const nextFollowUp = await getNextPendingFollowUpAt(db, leadId);
+  const nextTask = await findEarliestPendingTaskDueAt(db, leadId);
+  let next: string | null = null;
+  if (nextFollowUp && nextTask) {
+    next = nextFollowUp < nextTask ? nextFollowUp : nextTask;
+  } else {
+    next = nextFollowUp ?? nextTask ?? null;
+  }
   await updateLeadById(db, leadId, {
     nextFollowUpAt: next,
     updatedAt: nowIso(),

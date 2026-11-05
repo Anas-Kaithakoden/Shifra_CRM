@@ -63,6 +63,7 @@ import {
   PriorityBadge,
   StageBadge,
 } from "../components/leads";
+import { EntityTasksSection } from "../components/tasks";
 import { ConvertLeadDialog } from "../components/customers";
 
 function InfoRow({
@@ -550,6 +551,10 @@ export function LeadDetailPage() {
               ) : null}
             </CardBody>
           </Card>
+
+          {hasPermission(user, PERMISSIONS.TASKS_READ) ? (
+            <EntityTasksSection leadId={id} canCreate={hasPermission(user, PERMISSIONS.TASKS_CREATE)} />
+          ) : null}
 
           <Card>
             <CardHeader

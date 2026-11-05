@@ -447,10 +447,17 @@ Local values live in `.dev.vars` (gitignored). Production values live in
 | `APP_URL` | `http://localhost:5173` | Trusted origin for CSRF origin checks |
 | `SESSION_TTL_HOURS` | `168` | Absolute session lifetime (1–720) |
 | `SESSION_IDLE_MINUTES` | `480` | Idle timeout (5–10080) |
+| `TELEGRAM_REMINDERS_ENABLED` | `true` | Enables the scheduled reminder sweep when Telegram is configured |
+| `TELEGRAM_BOT_TOKEN` | *(secret)* | Telegram bot token — **set with `wrangler secret put`, never committed** |
+| `TELEGRAM_CHAT_ID` | *(secret/target)* | Telegram chat/group ID for reminders — **set with `wrangler secret put` in production** |
 
-Do not commit `.dev.vars`, `.env`, or any real credentials. If a future
-integration needs a real secret, use `wrangler secret put <NAME>` rather than
-putting it in `wrangler.jsonc`.
+Do not commit `.dev.vars`, `.env`, bot tokens, or any real credentials. For
+production/staging, store Telegram secrets with Wrangler:
+
+```powershell
+npx wrangler secret put TELEGRAM_BOT_TOKEN
+npx wrangler secret put TELEGRAM_CHAT_ID
+```
 
 ---
 
@@ -520,6 +527,23 @@ linkage:
   description, JSON metadata, optional lead/contact context, and timeline indexes.
 - `leads` gains `customer_id` and `converted_to_customer_at`, allowing Won leads
   to be linked to the customer they converted into.
+
+`migrations/0004_tasks.sql` and `migrations/0005_task_activities.sql` add the
+Tasks & Follow-ups + Telegram reminder module:
+
+- `tasks` — UUID ID, unique `SN-TASK-*` number, title/description, type,
+  status/priority, assignee/creator, optional lead/customer/project link, due
+  date, completion/cancellation timestamps, reminder fields (`enabled`,
+  `minutes_before`, `sent/attempted/status/error`), recurrence fields
+  (`type/interval/end_at/group_id`), and indexes for common filters.
+- `task_number_sequence` — atomic sequence for `SN-TASK-*` numbers.
+- `task_activities` — append-only task history (created/updated/assigned,
+  rescheduled, completed/reopened/cancelled, etc.) with metadata and actor.
+
+The Worker runs a scheduled cron (`* * * * *`, see `wrangler.jsonc`) that calls
+the reminder sweep: it computes `reminder_at = due_at - reminder_minutes_before`,
+skips completed/cancelled/already-sent tasks, retries failed sends with backoff,
+and stores delivery status without exposing secrets to the frontend.
 
 ---
 

@@ -14,7 +14,9 @@ import { customersRoutes } from "./routes/customers.routes";
 import { dashboardRoutes } from "./routes/dashboard.routes";
 import { followUpsRoutes } from "./routes/follow-ups.routes";
 import { leadsRoutes } from "./routes/leads.routes";
+import { notificationsRoutes } from "./routes/notifications.routes";
 import { settingsRoutes } from "./routes/settings.routes";
+import { tasksRoutes } from "./routes/tasks.routes";
 import { usersRoutes } from "./routes/users.routes";
 
 export function createApp() {
@@ -40,6 +42,8 @@ export function createApp() {
   app.route("/follow-ups", followUpsRoutes);
   app.route("/audit-logs", auditRoutes);
   app.route("/settings", settingsRoutes);
+  app.route("/tasks", tasksRoutes);
+  app.route("/notifications", notificationsRoutes);
 
   app.notFound((c) =>
     c.json(

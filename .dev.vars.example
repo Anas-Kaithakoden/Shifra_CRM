@@ -9,3 +9,11 @@ APP_URL=http://localhost:5173
 # Session lifetime (absolute) and idle timeout.
 SESSION_TTL_HOURS=168
 SESSION_IDLE_MINUTES=480
+
+# Telegram reminders (optional in local dev). Leave blank to keep reminders disabled.
+# Production/staging secrets must be set with Wrangler, never committed:
+#   npx wrangler secret put TELEGRAM_BOT_TOKEN
+#   npx wrangler secret put TELEGRAM_CHAT_ID
+TELEGRAM_REMINDERS_ENABLED=true
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=

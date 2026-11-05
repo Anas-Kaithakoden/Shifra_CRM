@@ -19,9 +19,13 @@ import { LeadDetailPage } from "./pages/LeadDetailPage";
 import { LeadPipelinePage } from "./pages/LeadPipelinePage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { LoginPage } from "./pages/LoginPage";
+import { MyTasksPage } from "./pages/MyTasksPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { NotificationSettingsPage } from "./pages/NotificationSettingsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TaskFollowUpsPage } from "./pages/TaskFollowUpsPage";
+import { TasksPage } from "./pages/TasksPage";
 
 export function App() {
   return (
@@ -125,6 +129,39 @@ export function App() {
               element={
                 <RequirePermission permission={PERMISSIONS.SETTINGS_MANAGE}>
                   <SettingsPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="/settings/notifications"
+              element={
+                <RequirePermission permission={PERMISSIONS.SETTINGS_MANAGE}>
+                  <NotificationSettingsPage />
+                </RequirePermission>
+              }
+            />
+
+            <Route
+              path="/tasks"
+              element={
+                <RequirePermission permission={PERMISSIONS.TASKS_READ}>
+                  <TasksPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="/tasks/my"
+              element={
+                <RequirePermission permission={PERMISSIONS.TASKS_READ}>
+                  <MyTasksPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="/tasks/follow-ups"
+              element={
+                <RequirePermission permission={PERMISSIONS.TASKS_READ}>
+                  <TaskFollowUpsPage />
                 </RequirePermission>
               }
             />
