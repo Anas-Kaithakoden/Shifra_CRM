@@ -1,0 +1,72 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shifra-nuha-crm",
+  "main": "src/server/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Serve the built React SPA from the same Worker as the API (single origin).
+  // `run_worker_first` ensures only API traffic reaches Hono; every other path
+  // is handled by the static asset server, which falls back to index.html for
+  // client-side routes such as /employees or /settings.
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Local development and `--remote` CLI commands use this binding.
+  // Replace the placeholder UUID with the real ID returned by:
+  //   npx wrangler d1 create shifra-nuha-crm
+  // Never commit a real database ID as a secret; a D1 ID is not a secret, but the
+  // placeholder makes it explicit that the value must be configured per account.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "shifra-nuha-crm",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "vars": {
+    "ENVIRONMENT": "production",
+    "APP_URL": "https://crm.shifranuhatech.com",
+    "SESSION_TTL_HOURS": "168",
+    "SESSION_IDLE_MINUTES": "480"
+  },
+
+  // The custom domain is attached on deploy. Remove this block if you want to
+  // attach the domain manually from the Cloudflare dashboard.
+  "routes": [
+    {
+      "pattern": "crm.shifranuhatech.com",
+      "custom_domain": true
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  },
+
+  "env": {
+    "staging": {
+      "name": "shifra-nuha-crm-staging",
+      // Create a separate staging D1 database and replace this placeholder.
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "shifra-nuha-crm-staging",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "APP_URL": "https://staging.crm.shifranuhatech.com",
+        "SESSION_TTL_HOURS": "168",
+        "SESSION_IDLE_MINUTES": "480"
+      }
+    }
+  }
+}

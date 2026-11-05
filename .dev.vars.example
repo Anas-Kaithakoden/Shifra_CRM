@@ -1,0 +1,11 @@
+# Local development variables for Wrangler / the Cloudflare Vite plugin.
+# Copy this file to `.dev.vars` and adjust if needed. `.dev.vars` is gitignored.
+#
+# These are NOT production secrets. Do not put real credentials here.
+
+ENVIRONMENT=development
+APP_URL=http://localhost:5173
+
+# Session lifetime (absolute) and idle timeout.
+SESSION_TTL_HOURS=168
+SESSION_IDLE_MINUTES=480

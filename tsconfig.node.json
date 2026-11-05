@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "composite": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "node_modules/.tmp/tsc/node",
+    "tsBuildInfoFile": "node_modules/.tmp/tsc/node.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": [
+    "vite.config.ts",
+    "vitest.config.ts",
+    "drizzle.config.ts",
+    "scripts",
+    "src/shared",
+    "src/server/auth/password.ts",
+    "src/server/lib/encoding.ts",
+    "src/server/lib/phone.ts",
+    "src/server/lib/time.ts",
+    "src/server/schemas/common.schema.ts"
+  ]
+}
