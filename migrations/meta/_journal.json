@@ -29,6 +29,20 @@
       "when": 1793859197623,
       "tag": "0003_sparkling_demogoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793880000000,
+      "tag": "0004_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793880000001,
+      "tag": "0005_task_activities",
+      "breakpoints": true
     }
   ]
 }

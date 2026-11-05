@@ -24,7 +24,7 @@
     {
       "binding": "DB",
       "database_name": "shifra-nuha-crm",
-      "database_id": "1aed0df5-7a75-449b-8322-89658dbcdc80",
+      "database_id": "8dd22a7e-bb19-4ed2-93e5-8f2af132e125",
       "migrations_dir": "migrations"
     }
   ],
