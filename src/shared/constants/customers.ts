@@ -101,6 +101,8 @@ export const CUSTOMER_QUICK_FILTERS = [
   "all",
   "active",
   "inactive",
+  "recent",
+  "my",
   "archived",
 ] as const;
 
@@ -111,8 +113,13 @@ export const CUSTOMER_QUICK_FILTER_LABELS: Record<CustomerQuickFilter, string> =
     all: "All Customers",
     active: "Active",
     inactive: "Inactive",
+    recent: "Recently Added",
+    my: "My Customers",
     archived: "Archived",
   };
+
+export const CUSTOMER_RECENT_DAYS = 30;
+export const DEFAULT_CUSTOMER_COUNTRY = "India";
 
 export const CUSTOMER_SORT_FIELDS = [
   "created_at",

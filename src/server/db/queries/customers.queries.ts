@@ -3,6 +3,7 @@ import {
   asc,
   desc,
   eq,
+  gte,
   inArray,
   isNull,
   ne,
@@ -67,7 +68,10 @@ export interface ListCustomersFilters {
   status?: CustomerStatus;
   type?: CustomerType;
   assignedTo?: string;
+  city?: string;
+  state?: string;
   scope?: "all" | "my";
+  recentlyAdded?: boolean;
   sortBy?: CustomerSortField;
   sortDir?: "asc" | "desc";
   includeArchived?: boolean;
@@ -89,7 +93,9 @@ export interface CustomerLeadWithUser {
     email: string | null;
     businessName: string | null;
     serviceInterest: string | null;
+    source: string | null;
     pipelineStage: PipelineStage;
+    lostReason: string | null;
     estimatedValue: number | null;
     assignedTo: string | null;
     convertedAt: string | null;
@@ -133,6 +139,10 @@ function searchCondition(search: string) {
     sql`lower(${customers.customerNumber}) like ${pattern}`,
     sql`lower(coalesce(${customers.email}, '')) like ${pattern}`,
     sql`lower(coalesce(${customers.city}, '')) like ${pattern}`,
+    sql`lower(coalesce(${customers.state}, '')) like ${pattern}`,
+    sql`lower(coalesce(${customers.district}, '')) like ${pattern}`,
+    sql`lower(coalesce(${customers.industry}, '')) like ${pattern}`,
+    sql`lower(coalesce(${customers.gstin}, '')) like ${pattern}`,
     phonePattern
       ? sql`${customers.phoneNormalized} like ${phonePattern}`
       : undefined,
@@ -164,6 +174,18 @@ function buildConditions(
   }
   if (filters.assignedTo) {
     conditions.push(eq(customers.assignedTo, filters.assignedTo));
+  }
+  if (filters.city) {
+    conditions.push(sql`lower(${customers.city}) = ${filters.city.toLowerCase()}`);
+  }
+  if (filters.state) {
+    conditions.push(
+      sql`lower(${customers.state}) = ${filters.state.toLowerCase()}`,
+    );
+  }
+  if (filters.recentlyAdded) {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    conditions.push(gte(customers.createdAt, since));
   }
 
   return conditions.length > 0 ? and(...conditions) : undefined;
@@ -593,7 +615,9 @@ function leadSelection() {
       email: leads.email,
       businessName: leads.businessName,
       serviceInterest: leads.serviceInterest,
+      source: leads.source,
       pipelineStage: leads.pipelineStage,
+      lostReason: leads.lostReason,
       estimatedValue: leads.estimatedValue,
       assignedTo: leads.assignedTo,
       convertedAt: leads.convertedAt,

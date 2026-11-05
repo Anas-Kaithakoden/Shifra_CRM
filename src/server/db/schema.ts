@@ -181,13 +181,17 @@ export const customers = sqliteTable(
     email: text("email"),
     emailNormalized: text("email_normalized"),
     website: text("website"),
+    industry: text("industry"),
     addressLine1: text("address_line1"),
     addressLine2: text("address_line2"),
     city: text("city"),
+    district: text("district"),
     state: text("state"),
     postalCode: text("postal_code"),
-    country: text("country"),
+    country: text("country").default("India"),
+    gstin: text("gstin"),
     notes: text("notes"),
+    source: text("source"),
     status: text("status", { enum: CUSTOMER_STATUSES })
       .notNull()
       .default("active"),
@@ -218,6 +222,9 @@ export const customers = sqliteTable(
     index("customers_created_at_idx").on(table.createdAt),
     index("customers_updated_at_idx").on(table.updatedAt),
     index("customers_archived_at_idx").on(table.archivedAt),
+    index("customers_city_idx").on(table.city),
+    index("customers_state_idx").on(table.state),
+    index("customers_gstin_idx").on(table.gstin),
     check("customers_type_check", sql`${table.type} in (${customerTypeSql})`),
     check(
       "customers_status_check",

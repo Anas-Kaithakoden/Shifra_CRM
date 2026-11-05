@@ -38,13 +38,17 @@ export interface CustomerDto {
   phone: string;
   email: string | null;
   website: string | null;
+  industry: string | null;
   addressLine1: string | null;
   addressLine2: string | null;
   city: string | null;
+  district: string | null;
   state: string | null;
   postalCode: string | null;
   country: string | null;
+  gstin: string | null;
   notes: string | null;
+  source: string | null;
   status: CustomerStatus;
   archivedAt: string | null;
   assignedTo: string | null;
@@ -73,7 +77,9 @@ export interface CustomerLeadDto {
   email: string | null;
   businessName: string | null;
   serviceInterest: string | null;
+  source: string | null;
   pipelineStage: PipelineStage;
+  lostReason: string | null;
   estimatedValue: number | null;
   assignedTo: string | null;
   assignedToName: string | null;
@@ -177,13 +183,17 @@ export interface ConvertLeadCustomerInput {
   phone?: string;
   email?: string;
   website?: string;
+  industry?: string;
   addressLine1?: string;
   addressLine2?: string;
   city?: string;
+  district?: string;
   state?: string;
   postalCode?: string;
   country?: string;
+  gstin?: string;
   notes?: string;
+  source?: string;
   assignedTo?: string;
 }
 
