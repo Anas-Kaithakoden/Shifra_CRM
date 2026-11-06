@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 import {
   CUSTOMER_ACTIVITY_TYPES,
+  CUSTOMER_SERVICE_CATEGORIES,
   CUSTOMER_STATUSES,
   CUSTOMER_TYPES,
 } from "../../shared/constants/customers";
@@ -152,6 +153,9 @@ const customerTypeSql = sql.raw(
 const customerStatusSql = sql.raw(
   CUSTOMER_STATUSES.map((status) => `'${status}'`).join(", "),
 );
+const customerServiceCategorySql = sql.raw(
+  CUSTOMER_SERVICE_CATEGORIES.map((category) => `'${category}'`).join(", "),
+);
 const customerActivityTypeSql = sql.raw(
   CUSTOMER_ACTIVITY_TYPES.map((type) => `'${type}'`).join(", "),
 );
@@ -198,8 +202,23 @@ export const customers = sqliteTable(
     profit: real("profit"),
     /** Date the service was delivered, stored as YYYY-MM-DD. */
     serviceDeliveredOn: text("service_delivered_on"),
+    /** Name of the recurring service sold to this customer. */
+    serviceName: text("service_name"),
+    /** Category used to group recurring services. */
+    serviceCategory: text("service_category", {
+      enum: CUSTOMER_SERVICE_CATEGORIES,
+    }),
     /** Optional next renewal date, stored as YYYY-MM-DD. */
     renewalOn: text("renewal_on"),
+    /**
+     * The renewal date for which the Telegram reminder was already delivered.
+     * Comparing it with renewalOn makes the reminder idempotent and re-arms it
+     * automatically when the renewal date changes.
+     */
+    renewalReminderFor: text("renewal_reminder_for"),
+    renewalReminderSentAt: text("renewal_reminder_sent_at"),
+    renewalReminderAttemptedAt: text("renewal_reminder_attempted_at"),
+    renewalReminderError: text("renewal_reminder_error"),
     status: text("status", { enum: CUSTOMER_STATUSES })
       .notNull()
       .default("active"),
@@ -234,8 +253,17 @@ export const customers = sqliteTable(
     index("customers_state_idx").on(table.state),
     index("customers_gstin_idx").on(table.gstin),
     index("customers_service_delivered_on_idx").on(table.serviceDeliveredOn),
+    index("customers_service_category_idx").on(table.serviceCategory),
     index("customers_renewal_on_idx").on(table.renewalOn),
+    index("customers_renewal_reminder_idx").on(
+      table.renewalOn,
+      table.renewalReminderFor,
+    ),
     check("customers_type_check", sql`${table.type} in (${customerTypeSql})`),
+    check(
+      "customers_service_category_check",
+      sql`${table.serviceCategory} is null or ${table.serviceCategory} in (${customerServiceCategorySql})`,
+    ),
     check(
       "customers_total_cost_check",
       sql`${table.totalCost} is null or ${table.totalCost} >= 0`,

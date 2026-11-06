@@ -1,5 +1,6 @@
 import type {
   CustomerActivityType,
+  CustomerServiceCategory,
   CustomerStatus,
   CustomerType,
   ManualCustomerActivityType,
@@ -49,10 +50,13 @@ export interface CustomerDto {
   gstin: string | null;
   notes: string | null;
   source: string | null;
+  serviceName: string | null;
+  serviceCategory: CustomerServiceCategory | null;
   totalCost: number | null;
   profit: number | null;
   serviceDeliveredOn: string | null;
   renewalOn: string | null;
+  renewalReminderSentAt: string | null;
   status: CustomerStatus;
   archivedAt: string | null;
   assignedTo: string | null;
@@ -198,6 +202,8 @@ export interface ConvertLeadCustomerInput {
   gstin?: string;
   notes?: string;
   source?: string;
+  serviceName?: string;
+  serviceCategory?: CustomerServiceCategory;
   totalCost?: number;
   profit?: number;
   serviceDeliveredOn?: string;

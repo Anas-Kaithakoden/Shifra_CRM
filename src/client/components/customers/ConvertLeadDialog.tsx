@@ -10,8 +10,11 @@ import {
   Trophy,
 } from "lucide-react";
 import {
+  CUSTOMER_SERVICE_CATEGORIES,
+  CUSTOMER_SERVICE_CATEGORY_LABELS,
   CUSTOMER_TYPE_LABELS,
   CUSTOMER_TYPES,
+  type CustomerServiceCategory,
   type CustomerType,
 } from "../../../shared/constants/customers";
 import { PIPELINE_STAGE_LABELS } from "../../../shared/constants/leads";
@@ -54,6 +57,8 @@ interface CreateFormState {
   country: string;
   website: string;
   notes: string;
+  serviceName: string;
+  serviceCategory: CustomerServiceCategory | "";
   totalCost: string;
   profit: string;
   serviceDeliveredOn: string;
@@ -76,6 +81,8 @@ function buildForm(lead: LeadDto): CreateFormState {
     notes: lead.serviceInterest
       ? `Converted from won lead ${lead.leadNumber} (${lead.serviceInterest}).`
       : `Converted from won lead ${lead.leadNumber}.`,
+    serviceName: lead.serviceInterest ?? "",
+    serviceCategory: "",
     totalCost: lead.estimatedValue !== null ? String(lead.estimatedValue) : "",
     profit: "",
     serviceDeliveredOn: "",
@@ -265,6 +272,8 @@ export function ConvertLeadDialog({
           country: form.country.trim() || undefined,
           website: form.website.trim() || undefined,
           notes: form.notes.trim() || undefined,
+          serviceName: form.serviceName.trim() || undefined,
+          serviceCategory: form.serviceCategory || undefined,
           totalCost: parseAmount(form.totalCost),
           profit: parseAmount(form.profit),
           serviceDeliveredOn: form.serviceDeliveredOn || undefined,
@@ -651,6 +660,35 @@ export function ConvertLeadDialog({
                     }))
                   }
                 />
+                <Input
+                  label="Service name"
+                  value={form.serviceName}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      serviceName: event.target.value,
+                    }))
+                  }
+                  placeholder="e.g. Website maintenance"
+                />
+                <Select
+                  label="Service category"
+                  value={form.serviceCategory}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      serviceCategory: event.target
+                        .value as CustomerServiceCategory | "",
+                    }))
+                  }
+                >
+                  <option value="">Select category</option>
+                  {CUSTOMER_SERVICE_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {CUSTOMER_SERVICE_CATEGORY_LABELS[category]}
+                    </option>
+                  ))}
+                </Select>
                 <Input
                   label="Total cost (₹)"
                   type="number"

@@ -27,6 +27,7 @@ import {
   Users,
 } from "lucide-react";
 import {
+  CUSTOMER_SERVICE_CATEGORY_LABELS,
   CUSTOMER_STATUS_LABELS,
   CUSTOMER_TYPE_LABELS,
   type ManualCustomerActivityType,
@@ -592,6 +593,28 @@ export function CustomerDetailPage() {
                 />
                 <CardBody className="grid gap-5 sm:grid-cols-2">
                   <InfoRow
+                    icon={<Building2 className="h-4 w-4" aria-hidden="true" />}
+                    label="Service"
+                  >
+                    {customer.serviceName ? (
+                      customer.serviceName
+                    ) : (
+                      <span className="text-slate-400">Not provided</span>
+                    )}
+                  </InfoRow>
+                  <InfoRow
+                    icon={<Target className="h-4 w-4" aria-hidden="true" />}
+                    label="Service category"
+                  >
+                    {customer.serviceCategory ? (
+                      CUSTOMER_SERVICE_CATEGORY_LABELS[
+                        customer.serviceCategory
+                      ]
+                    ) : (
+                      <span className="text-slate-400">Not provided</span>
+                    )}
+                  </InfoRow>
+                  <InfoRow
                     icon={<IndianRupee className="h-4 w-4" aria-hidden="true" />}
                     label="Total cost"
                   >
@@ -626,7 +649,15 @@ export function CustomerDetailPage() {
                     label="Renewal date"
                   >
                     {customer.renewalOn ? (
-                      formatCrmDate(customer.renewalOn)
+                      <span>
+                        {formatCrmDate(customer.renewalOn)}
+                        {customer.renewalReminderSentAt ? (
+                          <span className="mt-0.5 block text-xs font-normal text-slate-400">
+                            Telegram reminder sent{" "}
+                            {formatCrmDateTime(customer.renewalReminderSentAt)}
+                          </span>
+                        ) : null}
+                      </span>
                     ) : (
                       <span className="text-slate-400">No renewal</span>
                     )}

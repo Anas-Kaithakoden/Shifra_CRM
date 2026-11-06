@@ -1,9 +1,20 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  ne,
+  sql,
+} from "drizzle-orm";
 import type { TelegramStatusDto } from "../../shared/types/tasks";
+import { CUSTOMER_SERVICE_CATEGORY_LABELS } from "../../shared/constants/customers";
 import type { Env } from "../config";
 import type { AppDatabase } from "../db/client";
-import { tasks, type TaskRow } from "../db/schema";
-import { nowIso } from "../lib/time";
+import { customers, tasks, type CustomerRow, type TaskRow } from "../db/schema";
+import { getCrmDayBounds, nowIso } from "../lib/time";
 
 export function remindersEnabled(env: Env): boolean {
   if (env.TELEGRAM_REMINDERS_ENABLED === "false") return false;
@@ -245,3 +256,150 @@ export async function processPendingReminders(
 
   return { sent, failed, skipped };
 }
+
+const RENEWAL_REMINDER_WINDOW_DAYS = 7;
+const RENEWAL_REMINDER_RETRY_BACKOFF_MS = 5 * 60 * 1000;
+
+/**
+ * Returns the inclusive date-only window (CRM timezone) in which a renewal
+ * reminder should be delivered: today through seven days from today.
+ */
+export function getRenewalReminderWindow(now = new Date()): {
+  startKey: string;
+  endKey: string;
+} {
+  const { dateKey } = getCrmDayBounds(now);
+  const end = new Date(`${dateKey}T00:00:00.000Z`);
+  end.setUTCDate(end.getUTCDate() + RENEWAL_REMINDER_WINDOW_DAYS);
+  return { startKey: dateKey, endKey: end.toISOString().slice(0, 10) };
+}
+
+function daysUntil(dateKey: string, todayKey: string): number {
+  const target = Date.parse(`${dateKey}T00:00:00.000Z`);
+  const today = Date.parse(`${todayKey}T00:00:00.000Z`);
+  return Math.round((target - today) / (24 * 60 * 60 * 1000));
+}
+
+export function formatRenewalReminderMessage(
+  customer: CustomerRow,
+  todayKey: string,
+  appUrl?: string,
+): string {
+  const category = customer.serviceCategory
+    ? CUSTOMER_SERVICE_CATEGORY_LABELS[customer.serviceCategory]
+    : "Not set";
+  const days = customer.renewalOn
+    ? daysUntil(customer.renewalOn, todayKey)
+    : 0;
+
+  const lines = [
+    "🔁 <b>Shifra Nuha CRM — Renewal Reminder</b>",
+    "",
+    `🏢 <b>Customer:</b> ${escapeHtml(customer.businessName ?? customer.name)}`,
+    `🔢 <b>Customer no.:</b> ${escapeHtml(customer.customerNumber)}`,
+    `🧩 <b>Service:</b> ${escapeHtml(customer.serviceName ?? "Not set")}`,
+    `🗂 <b>Category:</b> ${escapeHtml(category)}`,
+    `📅 <b>Renewal date:</b> ${escapeHtml(customer.renewalOn ?? "")}`,
+    `⏳ <b>Days remaining:</b> ${days}`,
+    `📞 <b>Phone:</b> ${escapeHtml(customer.phone)}`,
+  ];
+
+  if (customer.email) {
+    lines.push(`✉️ <b>Email:</b> ${escapeHtml(customer.email)}`);
+  }
+
+  if (appUrl) {
+    lines.push(
+      "",
+      `🔗 <a href="${escapeHtml(`${appUrl}/customers/${customer.id}`)}">Open customer in CRM</a>`,
+    );
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Sends one Telegram reminder per customer renewal date, no later than seven
+ * days before the renewal. A successful send is recorded in
+ * `renewal_reminder_for` so the sweep is idempotent; changing the renewal date
+ * automatically re-arms the reminder.
+ */
+export async function processCustomerRenewalReminders(
+  db: AppDatabase,
+  env: Env,
+): Promise<{ sent: number; failed: number; skipped: number }> {
+  if (!remindersEnabled(env)) {
+    return { sent: 0, failed: 0, skipped: 0 };
+  }
+
+  const now = nowIso();
+  const nowMs = Date.now();
+  const { startKey, endKey } = getRenewalReminderWindow();
+
+  const candidates = await db
+    .select()
+    .from(customers)
+    .where(
+      and(
+        isNotNull(customers.renewalOn),
+        gte(customers.renewalOn, startKey),
+        lte(customers.renewalOn, endKey),
+        ne(customers.status, "archived"),
+        sql`(${customers.renewalReminderFor} is null or ${customers.renewalReminderFor} != ${customers.renewalOn})`,
+      ),
+    )
+    .all();
+
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const customer of candidates) {
+    // Retry failed sends after a short backoff instead of hammering Telegram
+    // every minute. Successful sends are excluded by the query above.
+    if (customer.renewalReminderError && customer.renewalReminderAttemptedAt) {
+      const lastAttemptMs = Date.parse(customer.renewalReminderAttemptedAt);
+      if (
+        Number.isFinite(lastAttemptMs) &&
+        nowMs - lastAttemptMs < RENEWAL_REMINDER_RETRY_BACKOFF_MS
+      ) {
+        skipped += 1;
+        continue;
+      }
+    }
+
+    const message = formatRenewalReminderMessage(
+      customer,
+      startKey,
+      env.APP_URL,
+    );
+    const result = await sendTelegramMessage(env, message);
+
+    if (result.ok) {
+      await db
+        .update(customers)
+        .set({
+          renewalReminderFor: customer.renewalOn,
+          renewalReminderSentAt: now,
+          renewalReminderAttemptedAt: now,
+          renewalReminderError: null,
+          updatedAt: now,
+        })
+        .where(eq(customers.id, customer.id));
+      sent += 1;
+    } else {
+      await db
+        .update(customers)
+        .set({
+          renewalReminderAttemptedAt: now,
+          renewalReminderError: result.error ?? "Failed to send message",
+          updatedAt: now,
+        })
+        .where(eq(customers.id, customer.id));
+      failed += 1;
+    }
+  }
+
+  return { sent, failed, skipped };
+}
+

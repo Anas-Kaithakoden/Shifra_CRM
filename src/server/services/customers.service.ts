@@ -345,6 +345,8 @@ export async function createCustomerForActor(
       postalCode: input.postalCode ?? null,
       country: input.country ?? null,
       notes: input.notes ?? null,
+      serviceName: input.serviceName ?? null,
+      serviceCategory: input.serviceCategory ?? null,
       totalCost: input.totalCost ?? null,
       profit: input.profit ?? null,
       serviceDeliveredOn: input.serviceDeliveredOn ?? null,
@@ -533,6 +535,8 @@ export async function updateCustomerForActor(
   }
 
   const financialFields = [
+    "serviceName",
+    "serviceCategory",
     "totalCost",
     "profit",
     "serviceDeliveredOn",
@@ -545,6 +549,19 @@ export async function updateCustomerForActor(
       previous[field] = existing.customer[field];
       changedFields.push(field);
     }
+  }
+
+  // A new renewal date must re-arm the Telegram reminder.
+  if (
+    input.renewalOn !== undefined &&
+    (input.renewalOn ?? null) !== existing.customer.renewalOn
+  ) {
+    Object.assign(updates, {
+      renewalReminderFor: null,
+      renewalReminderSentAt: null,
+      renewalReminderAttemptedAt: null,
+      renewalReminderError: null,
+    });
   }
 
   const duplicateOptions = {
@@ -1479,6 +1496,8 @@ export async function convertLeadToCustomerForActor(
     gstin: requested?.gstin,
     notes: requested?.notes,
     source: requested?.source,
+    serviceName: requested?.serviceName,
+    serviceCategory: requested?.serviceCategory,
     totalCost: requested?.totalCost,
     profit: requested?.profit,
     serviceDeliveredOn: requested?.serviceDeliveredOn,

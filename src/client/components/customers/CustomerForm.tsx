@@ -3,8 +3,11 @@ import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import {
+  CUSTOMER_SERVICE_CATEGORIES,
+  CUSTOMER_SERVICE_CATEGORY_LABELS,
   CUSTOMER_TYPE_LABELS,
   CUSTOMER_TYPES,
+  type CustomerServiceCategory,
   type CustomerType,
 } from "../../../shared/constants/customers";
 import { PERMISSIONS } from "../../../shared/types/permissions";
@@ -46,6 +49,8 @@ interface FormState {
   postalCode: string;
   country: string;
   notes: string;
+  serviceName: string;
+  serviceCategory: CustomerServiceCategory | "";
   totalCost: string;
   profit: string;
   serviceDeliveredOn: string;
@@ -69,6 +74,8 @@ function emptyState(customer?: CustomerDto): FormState {
     postalCode: customer?.postalCode ?? "",
     country: customer?.country ?? "",
     notes: customer?.notes ?? "",
+    serviceName: customer?.serviceName ?? "",
+    serviceCategory: customer?.serviceCategory ?? "",
     totalCost:
       customer?.totalCost !== null && customer?.totalCost !== undefined
         ? String(customer.totalCost)
@@ -188,6 +195,8 @@ export function CustomerForm({
     postalCode: form.postalCode.trim() || undefined,
     country: form.country.trim() || undefined,
     notes: form.notes.trim() || undefined,
+    serviceName: form.serviceName.trim() || undefined,
+    serviceCategory: form.serviceCategory || undefined,
     totalCost: parseAmount(form.totalCost),
     profit: parseAmount(form.profit),
     serviceDeliveredOn: form.serviceDeliveredOn || undefined,
@@ -213,6 +222,8 @@ export function CustomerForm({
     postalCode: form.postalCode.trim() || null,
     country: form.country.trim() || null,
     notes: form.notes.trim() || null,
+    serviceName: form.serviceName.trim() || null,
+    serviceCategory: form.serviceCategory || null,
     totalCost: parseAmount(form.totalCost) ?? null,
     profit: parseAmount(form.profit) ?? null,
     serviceDeliveredOn: form.serviceDeliveredOn || null,
@@ -461,6 +472,31 @@ export function CustomerForm({
             Service &amp; financials
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Service name"
+              value={form.serviceName}
+              onChange={(event) => update({ serviceName: event.target.value })}
+              error={fieldErrors.serviceName}
+              placeholder="e.g. Website maintenance"
+            />
+            <Select
+              label="Service category"
+              value={form.serviceCategory}
+              onChange={(event) =>
+                update({
+                  serviceCategory: event.target
+                    .value as CustomerServiceCategory | "",
+                })
+              }
+              error={fieldErrors.serviceCategory}
+            >
+              <option value="">Select category</option>
+              {CUSTOMER_SERVICE_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {CUSTOMER_SERVICE_CATEGORY_LABELS[category]}
+                </option>
+              ))}
+            </Select>
             <Input
               label="Total cost (₹)"
               type="number"

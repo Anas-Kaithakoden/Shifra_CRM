@@ -545,6 +545,18 @@ the reminder sweep: it computes `reminder_at = due_at - reminder_minutes_before`
 skips completed/cancelled/already-sent tasks, retries failed sends with backoff,
 and stores delivery status without exposing secrets to the frontend.
 
+`migrations/0006_customer_service_financials.sql` adds nullable customer fields
+for total cost, profit, service delivery date, and renewal date.
+
+`migrations/0007_customer_services_and_renewal_reminders.sql` adds the recurring
+service name/category plus reminder bookkeeping. The same cron also sweeps
+customer renewals: when `renewal_on` is today or within the next seven days, it
+sends one Telegram reminder per renewal date. The reminder is idempotent
+(`renewal_reminder_for` stores the date already notified) and re-arms
+automatically when the renewal date changes. Archived customers are skipped.
+Telegram reminders require `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, and
+`TELEGRAM_REMINDERS_ENABLED` not set to `"false"`.
+
 ---
 
 ## Seed data and owner bootstrap

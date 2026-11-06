@@ -1,7 +1,11 @@
 import { createApp } from "./app";
 import type { Env } from "./config";
 import { createDb } from "./db/client";
-import { processPendingReminders, remindersEnabled } from "./services/telegram";
+import {
+  processCustomerRenewalReminders,
+  processPendingReminders,
+  remindersEnabled,
+} from "./services/telegram";
 
 const app = createApp();
 
@@ -12,7 +16,10 @@ export default {
       (async () => {
         if (!remindersEnabled(env)) return;
         const db = createDb(env.DB);
-        await processPendingReminders(db, env);
+        await Promise.all([
+          processPendingReminders(db, env),
+          processCustomerRenewalReminders(db, env),
+        ]);
       })(),
     );
   },

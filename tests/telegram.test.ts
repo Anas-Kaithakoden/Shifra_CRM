@@ -1,12 +1,15 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { env } from "cloudflare:test";
 import type { TaskDto, TelegramStatusDto } from "../src/shared/types/tasks";
+import type { CustomerDetailDto } from "../src/shared/types/customers";
 import { createDb } from "../src/server/db/client";
-import { tasks } from "../src/server/db/schema";
+import { customers, tasks } from "../src/server/db/schema";
 import { eq } from "drizzle-orm";
 import {
+  getRenewalReminderWindow,
   getTelegramStatus,
   maskChatId,
+  processCustomerRenewalReminders,
   processPendingReminders,
   remindersEnabled,
   sendTelegramMessage,
@@ -309,5 +312,133 @@ describe("Telegram Reminders & Notification Service", () => {
     const sweepBackoff = await processPendingReminders(db, testEnv);
     expect(sweepBackoff.failed).toBe(0);
     expect(sweepBackoff.sent).toBe(0);
+  });
+
+  it("processCustomerRenewalReminders: reminds within one week, once per renewal date, and re-arms on change", async () => {
+    const db = createDb(env.DB);
+    const owner = await createUser({ role: "owner" });
+    const auth = await login(owner.email);
+
+    const testEnv = {
+      DB: env.DB,
+      TELEGRAM_BOT_TOKEN: "mock_token",
+      TELEGRAM_CHAT_ID: "-100123456",
+      TELEGRAM_REMINDERS_ENABLED: "true",
+      APP_URL: "https://crm.example.com",
+    };
+
+    const { startKey } = getRenewalReminderWindow();
+    const addDays = (days: number) => {
+      const date = new Date(`${startKey}T00:00:00.000Z`);
+      date.setUTCDate(date.getUTCDate() + days);
+      return date.toISOString().slice(0, 10);
+    };
+    const renewalDate = addDays(5);
+    const suffix = String(Date.now()).slice(-6);
+
+    const createCustomer = async (
+      name: string,
+      phoneSuffix: string,
+      renewalOn: string,
+      serviceName: string,
+    ): Promise<CustomerDetailDto> => {
+      const response = await apiRequest("/api/customers", {
+        method: "POST",
+        auth,
+        body: {
+          name,
+          phone: `+1 555 ${phoneSuffix} ${suffix}`,
+          email: `${name.toLowerCase().replace(/\s+/g, ".")}.${suffix}@example.com`,
+          serviceName,
+          serviceCategory: "digital_solutions",
+          renewalOn,
+        },
+      });
+      expect(response.status).toBe(201);
+      const body = await parseData<{ customer: CustomerDetailDto }>(response);
+      return body.customer;
+    };
+
+    const due = await createCustomer(
+      "Renewal Due",
+      "111",
+      renewalDate,
+      "SEO retainer",
+    );
+    const far = await createCustomer(
+      "Renewal Far",
+      "222",
+      addDays(30),
+      "Logo design",
+    );
+    const archived = await createCustomer(
+      "Renewal Archived",
+      "333",
+      addDays(3),
+      "Hosting",
+    );
+    await apiRequest(`/api/customers/${archived.id}/archive`, {
+      method: "POST",
+      auth,
+    });
+
+    const sentMessages: string[] = [];
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, init) => {
+      const payload = JSON.parse(String(init?.body ?? "{}")) as {
+        text?: string;
+      };
+      sentMessages.push(payload.text ?? "");
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    const sweep1 = await processCustomerRenewalReminders(db, testEnv);
+    expect(sweep1.sent).toBe(1);
+    expect(sentMessages).toHaveLength(1);
+    expect(sentMessages[0]).toContain("SEO retainer");
+    expect(sentMessages[0]).toContain("Digital Solutions");
+    expect(sentMessages[0]).toContain("Open customer in CRM");
+
+    const dueRow = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, due.id))
+      .get();
+    expect(dueRow?.renewalReminderFor).toBe(renewalDate);
+    expect(dueRow?.renewalReminderSentAt).toBeTruthy();
+
+    // Idempotent: running again does not resend for the same renewal date.
+    const sweep2 = await processCustomerRenewalReminders(db, testEnv);
+    expect(sweep2.sent).toBe(0);
+    expect(sentMessages).toHaveLength(1);
+
+    const farRow = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, far.id))
+      .get();
+    expect(farRow?.renewalReminderSentAt).toBeNull();
+
+    const archivedRow = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, archived.id))
+      .get();
+    expect(archivedRow?.renewalReminderSentAt).toBeNull();
+
+    // Changing the renewal date re-arms the reminder.
+    const newRenewalDate = addDays(6);
+    const updateResponse = await apiRequest(`/api/customers/${due.id}`, {
+      method: "PATCH",
+      auth,
+      body: { renewalOn: newRenewalDate },
+    });
+    expect(updateResponse.status).toBe(200);
+
+    const sweep3 = await processCustomerRenewalReminders(db, testEnv);
+    expect(sweep3.sent).toBe(1);
+    expect(sentMessages).toHaveLength(2);
   });
 });

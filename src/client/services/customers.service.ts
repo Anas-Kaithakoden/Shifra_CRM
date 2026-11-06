@@ -1,6 +1,7 @@
 import type { Paginated } from "../../shared/types/api";
 import type {
   CustomerActivityType,
+  CustomerServiceCategory,
   CustomerSortField,
   CustomerStatus,
   CustomerType,
@@ -46,6 +47,8 @@ export interface CustomerCreateInput {
   postalCode?: string;
   country?: string;
   notes?: string;
+  serviceName?: string;
+  serviceCategory?: CustomerServiceCategory;
   totalCost?: number;
   profit?: number;
   serviceDeliveredOn?: string;
@@ -69,6 +72,8 @@ export interface CustomerUpdateInput {
   postalCode?: string | null;
   country?: string | null;
   notes?: string | null;
+  serviceName?: string | null;
+  serviceCategory?: CustomerServiceCategory | null;
   totalCost?: number | null;
   profit?: number | null;
   serviceDeliveredOn?: string | null;

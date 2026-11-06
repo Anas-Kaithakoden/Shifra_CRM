@@ -236,12 +236,16 @@ describe("customer CRUD and lifecycle", () => {
     const auth = await login(owner.email);
 
     const created = await createCustomer(auth, {
+      serviceName: "Website maintenance",
+      serviceCategory: "digital_solutions",
       totalCost: 125000,
       profit: 32500,
       serviceDeliveredOn: "2026-02-10",
       renewalOn: "2027-02-10",
     });
 
+    expect(created.serviceName).toBe("Website maintenance");
+    expect(created.serviceCategory).toBe("digital_solutions");
     expect(created.totalCost).toBe(125000);
     expect(created.profit).toBe(32500);
     expect(created.serviceDeliveredOn).toBe("2026-02-10");
@@ -249,6 +253,8 @@ describe("customer CRUD and lifecycle", () => {
 
     const listed = await listCustomers(auth, "?pageSize=100");
     expect(listed.items.find((row) => row.id === created.id)).toMatchObject({
+      serviceName: "Website maintenance",
+      serviceCategory: "digital_solutions",
       totalCost: 125000,
       profit: 32500,
       serviceDeliveredOn: "2026-02-10",
