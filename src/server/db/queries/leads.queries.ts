@@ -315,6 +315,13 @@ export async function updateLeadById(
   return db.update(leads).set(values).where(eq(leads.id, id)).returning().get();
 }
 
+export async function deleteLeadById(
+  db: AppDatabase,
+  id: string,
+): Promise<void> {
+  await db.delete(leads).where(eq(leads.id, id)).run();
+}
+
 export async function insertLeadActivity(
   db: AppDatabase,
   values: NewLeadActivityRow,

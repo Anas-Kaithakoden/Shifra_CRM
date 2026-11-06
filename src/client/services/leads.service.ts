@@ -155,6 +155,12 @@ export const leadsService = {
     }).then(() => undefined);
   },
 
+  deletePermanently(id: string): Promise<void> {
+    return apiRequest<{ deleted: boolean }>(`/leads/${id}/permanent`, {
+      method: "DELETE",
+    }).then(() => undefined);
+  },
+
   listActivities(
     id: string,
     params: { page?: number; pageSize?: number } = {},

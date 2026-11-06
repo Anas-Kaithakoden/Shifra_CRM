@@ -28,6 +28,7 @@ import {
   changeLeadStageForActor,
   checkDuplicateLeadsForActor,
   createLeadForActor,
+  deleteLeadPermanentlyForActor,
   getLeadForActor,
   getPipelineForActor,
   listLeadActivitiesForActor,
@@ -252,6 +253,24 @@ leadsRoutes.post(
       getClientIp(c),
     );
     return ok(c, { followUp }, 201);
+  },
+);
+
+leadsRoutes.delete(
+  "/:id/permanent",
+  requireAuth,
+  requireCsrf,
+  requirePermission(PERMISSIONS.LEADS_DELETE),
+  async (c) => {
+    const { id } = parseParams(c, idParamSchema);
+    const db = createDb(c.env.DB);
+    await deleteLeadPermanentlyForActor(
+      db,
+      c.get("user"),
+      id,
+      getClientIp(c),
+    );
+    return ok(c, { deleted: true });
   },
 );
 

@@ -285,6 +285,78 @@ describe("customer CRUD and lifecycle", () => {
     await expectError(invalidDate, 400, "validation_error");
   });
 
+  it("permanently deletes a customer, unlinks leads and keeps an audit record", async () => {
+    const owner = await createUser({ role: "owner" });
+    const employee = await createUser({ role: "employee" });
+    const ownerAuth = await login(owner.email);
+    const employeeAuth = await login(employee.email);
+    const customer = await createCustomer(ownerAuth);
+    const lead = await createLead(ownerAuth);
+
+    const linkResponse = await apiRequest(
+      `/api/customers/${customer.id}/leads`,
+      { method: "POST", auth: ownerAuth, body: { leadId: lead.id } },
+    );
+    expect(linkResponse.status).toBe(201);
+
+    const serviceResponse = await apiRequest(
+      `/api/customers/${customer.id}/services`,
+      {
+        method: "POST",
+        auth: ownerAuth,
+        body: {
+          serviceName: "Website maintenance",
+          serviceCategory: "digital_solutions",
+        },
+      },
+    );
+    expect(serviceResponse.status).toBe(201);
+
+    const denied = await apiRequest(
+      `/api/customers/${customer.id}/permanent`,
+      { method: "DELETE", auth: employeeAuth },
+    );
+    await expectError(denied, 403, "forbidden");
+
+    const deleted = await apiRequest(
+      `/api/customers/${customer.id}/permanent`,
+      { method: "DELETE", auth: ownerAuth },
+    );
+    expect(deleted.status).toBe(200);
+    expect(await parseData<{ deleted: boolean }>(deleted)).toEqual({
+      deleted: true,
+    });
+
+    const detail = await apiRequest(`/api/customers/${customer.id}`, {
+      auth: ownerAuth,
+    });
+    await expectError(detail, 404, "not_found");
+
+    const remainingCustomerData = await env.DB.prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM customer_contacts WHERE customer_id = ?) +
+         (SELECT COUNT(*) FROM customer_services WHERE customer_id = ?) +
+         (SELECT COUNT(*) FROM customer_activities WHERE customer_id = ?) AS count`,
+    )
+      .bind(customer.id, customer.id, customer.id)
+      .first<{ count: number }>();
+    expect(remainingCustomerData?.count).toBe(0);
+
+    const linkedLead = await env.DB.prepare(
+      "SELECT customer_id FROM leads WHERE id = ?",
+    )
+      .bind(lead.id)
+      .first<{ customer_id: string | null }>();
+    expect(linkedLead?.customer_id).toBeNull();
+
+    const audit = await env.DB.prepare(
+      "SELECT action FROM audit_logs WHERE entity_id = ? AND action = 'customer.deleted' LIMIT 1",
+    )
+      .bind(customer.id)
+      .first<{ action: string }>();
+    expect(audit?.action).toBe("customer.deleted");
+  });
+
   it("detects normalized duplicates and requires an explicit override", async () => {
     const owner = await createUser({ role: "owner" });
     const auth = await login(owner.email);

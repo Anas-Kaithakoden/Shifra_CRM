@@ -349,6 +349,17 @@ export async function deleteCustomerById(
   await db.delete(customers).where(eq(customers.id, id)).run();
 }
 
+export async function unlinkLeadsFromCustomer(
+  db: AppDatabase,
+  customerId: string,
+): Promise<void> {
+  await db
+    .update(leads)
+    .set({ customerId: null })
+    .where(eq(leads.customerId, customerId))
+    .run();
+}
+
 export async function allocateCustomerNumber(
   db: AppDatabase,
   now: string,

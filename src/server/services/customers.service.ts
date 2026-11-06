@@ -43,6 +43,7 @@ import {
   listCustomerLeads,
   listCustomers,
   listRecentCustomerActivities,
+  unlinkLeadsFromCustomer,
   updateCustomerById,
   updateCustomerContactById,
   type CustomerWithRelations,
@@ -832,6 +833,28 @@ export async function archiveCustomerForActor(
   });
 
   return getCustomerForActor(db, actor, id);
+}
+
+export async function deleteCustomerPermanentlyForActor(
+  db: AppDatabase,
+  actor: AuthUserDto,
+  id: string,
+  ipAddress: string | null,
+): Promise<void> {
+  const existing = await getCustomerRowForActor(db, actor, id);
+  if (!canManageCustomer(actor, existing.customer)) {
+    throw forbidden("You do not have permission to delete this customer.");
+  }
+
+  await unlinkLeadsFromCustomer(db, id);
+  await deleteCustomerById(db, id);
+  await recordCustomerAudit(db, {
+    actorId: actor.id,
+    action: AUDIT_ACTIONS.CUSTOMER_DELETED,
+    customerId: id,
+    ipAddress,
+    metadata: { customerNumber: existing.customer.customerNumber },
+  });
 }
 
 export async function restoreCustomerForActor(

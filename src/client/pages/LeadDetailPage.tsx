@@ -14,6 +14,7 @@ import {
   Plus,
   RotateCcw,
   Target,
+  Trash2,
   Trophy,
   UserPlus,
   UserRound,
@@ -113,6 +114,7 @@ export function LeadDetailPage() {
     null,
   );
   const [convertOpen, setConvertOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const leadQuery = useQuery({
     queryKey: ["leads", "detail", id],
@@ -156,6 +158,7 @@ export function LeadDetailPage() {
   );
   const canEdit = canManage && hasPermission(user, PERMISSIONS.LEADS_UPDATE);
   const canStage = canManage && hasPermission(user, PERMISSIONS.LEADS_STAGE);
+  const canDelete = canManage && hasPermission(user, PERMISSIONS.LEADS_DELETE);
   const canSchedule =
     canManage && hasPermission(user, PERMISSIONS.FOLLOWUPS_CREATE);
   const canConvert =
@@ -255,6 +258,26 @@ export function LeadDetailPage() {
       toast({
         title: "Could not complete the follow-up",
         description: error instanceof Error ? error.message : "Please try again.",
+        variant: "error",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => leadsService.deletePermanently(id),
+    onSuccess: () => {
+      toast({
+        title: "Lead permanently deleted",
+        description: "The lead and its follow-ups and activity history were removed.",
+        variant: "success",
+      });
+      invalidateAll();
+      navigate("/leads");
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not delete the lead",
+        description: error instanceof ApiError ? error.message : "Please try again.",
         variant: "error",
       });
     },
@@ -382,6 +405,15 @@ export function LeadDetailPage() {
                 leftIcon={<Pencil className="h-4 w-4" aria-hidden="true" />}
               >
                 Edit
+              </Button>
+            ) : null}
+            {canDelete ? (
+              <Button
+                variant="danger"
+                onClick={() => setDeleteOpen(true)}
+                leftIcon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+              >
+                Delete lead
               </Button>
             ) : null}
           </>
@@ -900,6 +932,15 @@ export function LeadDetailPage() {
           }
         }}
         onCancel={() => setCompleteTarget(null)}
+      />
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Permanently delete this lead?"
+        description={`"${lead.name}" and its follow-ups and activity history will be permanently removed. Related tasks will remain but be unlinked from this lead. This cannot be undone.`}
+        confirmLabel="Delete permanently"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setDeleteOpen(false)}
       />
     </div>
   );

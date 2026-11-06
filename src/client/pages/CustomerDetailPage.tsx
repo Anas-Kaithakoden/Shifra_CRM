@@ -22,6 +22,7 @@ import {
   StickyNote,
   TrendingUp,
   Target,
+  Trash2,
   Trophy,
   UserRound,
   Users,
@@ -181,6 +182,7 @@ export function CustomerDetailPage() {
   const [removeContactTarget, setRemoveContactTarget] =
     useState<CustomerContactDto | null>(null);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [serviceFormOpen, setServiceFormOpen] = useState(false);
@@ -218,6 +220,8 @@ export function CustomerDetailPage() {
     canManage && hasPermission(user, PERMISSIONS.CUSTOMERS_UPDATE);
   const canArchive =
     canManage && hasPermission(user, PERMISSIONS.CUSTOMERS_ARCHIVE);
+  const canDelete =
+    canManage && hasPermission(user, PERMISSIONS.CUSTOMERS_DELETE);
   const canManageContacts =
     canManage && hasPermission(user, PERMISSIONS.CUSTOMERS_CONTACTS);
   const canAddNotes =
@@ -246,6 +250,28 @@ export function CustomerDetailPage() {
     onError: (error) => {
       toast({
         title: "Could not archive customer",
+        description:
+          error instanceof ApiError ? error.message : "Please try again.",
+        variant: "error",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => customersService.deletePermanently(id),
+    onSuccess: async () => {
+      toast({
+        title: "Customer permanently deleted",
+        description: "The customer and related history were permanently removed.",
+        variant: "success",
+      });
+      setDeleteOpen(false);
+      await invalidateCustomer();
+      navigate("/customers");
+    },
+    onError: (error) => {
+      toast({
+        title: "Could not delete the customer",
         description:
           error instanceof ApiError ? error.message : "Please try again.",
         variant: "error",
@@ -375,14 +401,27 @@ export function CustomerDetailPage() {
         title={customerName}
         description={`${customer.customerNumber} · ${CUSTOMER_TYPE_LABELS[customer.type]} · ${customer.name}`}
         actions={
-          canUpdate && !isArchived ? (
-            <Button
-              variant="outline"
-              onClick={() => setEditOpen(true)}
-              leftIcon={<Pencil className="h-4 w-4" aria-hidden="true" />}
-            >
-              Edit customer
-            </Button>
+          (canUpdate && !isArchived) || canDelete ? (
+            <>
+              {canUpdate && !isArchived ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setEditOpen(true)}
+                  leftIcon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+                >
+                  Edit customer
+                </Button>
+              ) : null}
+              {canDelete ? (
+                <Button
+                  variant="danger"
+                  onClick={() => setDeleteOpen(true)}
+                  leftIcon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
+                >
+                  Delete customer
+                </Button>
+              ) : null}
+            </>
           ) : undefined
         }
       />
@@ -1265,6 +1304,16 @@ export function CustomerDetailPage() {
         isLoading={archiveMutation.isPending}
         onConfirm={() => archiveMutation.mutate()}
         onCancel={() => setArchiveOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Permanently delete this customer?"
+        description={`"${customerName}" and its contacts, services and activity history will be permanently removed. Linked leads and tasks will remain but be unlinked from this customer. This cannot be undone.`}
+        confirmLabel="Delete permanently"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setDeleteOpen(false)}
       />
 
       <ConfirmDialog

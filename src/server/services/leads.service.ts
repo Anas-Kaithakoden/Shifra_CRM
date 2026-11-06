@@ -22,6 +22,7 @@ import type { AppDatabase } from "../db/client";
 import { findUserById } from "../db/queries/users.queries";
 import {
   countLeadsByStage,
+  deleteLeadById,
   findDuplicateLeads,
   findLeadById,
   insertLead,
@@ -968,6 +969,31 @@ export async function archiveLeadForActor(
   await recordAudit(db, {
     userId: actor.id,
     action: AUDIT_ACTIONS.LEAD_ARCHIVED,
+    entityType: "lead",
+    entityId: id,
+    metadata: { leadNumber: existing.lead.leadNumber },
+    ipAddress,
+  });
+}
+
+export async function deleteLeadPermanentlyForActor(
+  db: AppDatabase,
+  actor: AuthUserDto,
+  id: string,
+  ipAddress: string | null,
+): Promise<void> {
+  const existing = await findLeadById(db, id);
+  if (!existing) {
+    throw notFound("Lead not found.");
+  }
+  if (!canManageLead(actor, existing.lead)) {
+    throw forbidden("You do not have permission to delete this lead.");
+  }
+
+  await deleteLeadById(db, id);
+  await recordAudit(db, {
+    userId: actor.id,
+    action: AUDIT_ACTIONS.LEAD_DELETED,
     entityType: "lead",
     entityId: id,
     metadata: { leadNumber: existing.lead.leadNumber },

@@ -156,6 +156,12 @@ export const customersService = {
     ).then((result) => result.customer);
   },
 
+  deletePermanently(id: string): Promise<void> {
+    return apiRequest<{ deleted: boolean }>(`/customers/${id}/permanent`, {
+      method: "DELETE",
+    }).then(() => undefined);
+  },
+
   restore(id: string): Promise<CustomerDetailDto> {
     return apiRequest<{ customer: CustomerDetailDto }>(
       `/customers/${id}/restore`,

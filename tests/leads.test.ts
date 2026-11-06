@@ -1,3 +1,4 @@
+import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import type { Paginated } from "../src/shared/types/api";
 import type {
@@ -453,6 +454,48 @@ describe("lead listing, search, filters and pagination", () => {
 
     const detail = await apiRequest(`/api/leads/${lead.id}`, { auth });
     await expectError(detail, 404, "not_found");
+  });
+
+  it("permanently deletes a lead and keeps an audit record", async () => {
+    const owner = await createUser({ role: "owner" });
+    const employee = await createUser({ role: "employee" });
+    const ownerAuth = await login(owner.email);
+    const employeeAuth = await login(employee.email);
+    const lead = await createLead(ownerAuth, { name: "Permanent delete lead" });
+
+    const denied = await apiRequest(`/api/leads/${lead.id}/permanent`, {
+      method: "DELETE",
+      auth: employeeAuth,
+    });
+    await expectError(denied, 403, "forbidden");
+
+    const deleted = await apiRequest(`/api/leads/${lead.id}/permanent`, {
+      method: "DELETE",
+      auth: ownerAuth,
+    });
+    expect(deleted.status).toBe(200);
+    expect(await parseData<{ deleted: boolean }>(deleted)).toEqual({
+      deleted: true,
+    });
+
+    const detail = await apiRequest(`/api/leads/${lead.id}`, {
+      auth: ownerAuth,
+    });
+    await expectError(detail, 404, "not_found");
+
+    const remainingActivities = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM lead_activities WHERE lead_id = ?",
+    )
+      .bind(lead.id)
+      .first<{ count: number }>();
+    expect(remainingActivities?.count).toBe(0);
+
+    const audit = await env.DB.prepare(
+      "SELECT action FROM audit_logs WHERE entity_id = ? AND action = 'lead.deleted' LIMIT 1",
+    )
+      .bind(lead.id)
+      .first<{ action: string }>();
+    expect(audit?.action).toBe("lead.deleted");
   });
 });
 

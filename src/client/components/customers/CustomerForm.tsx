@@ -10,6 +10,10 @@ import {
   type CustomerServiceCategory,
   type CustomerType,
 } from "../../../shared/constants/customers";
+import {
+  OTHER_SERVICE,
+  SERVICE_CATEGORIES,
+} from "../../../shared/constants/services";
 import { PERMISSIONS } from "../../../shared/types/permissions";
 import type {
   CustomerDto,
@@ -150,6 +154,11 @@ export function CustomerForm({
 
   const isEdit = Boolean(customer);
   const canAssign = hasPermission(user, PERMISSIONS.CUSTOMERS_ASSIGN);
+  const serviceIsInCatalogue =
+    form.serviceName === OTHER_SERVICE ||
+    SERVICE_CATEGORIES.some((category) =>
+      category.services.includes(form.serviceName),
+    );
 
   const usersQuery = useQuery({
     queryKey: ["users", "customer-assignees"],
@@ -472,13 +481,27 @@ export function CustomerForm({
             Service &amp; financials
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input
+            <Select
               label="Service name"
               value={form.serviceName}
               onChange={(event) => update({ serviceName: event.target.value })}
               error={fieldErrors.serviceName}
-              placeholder="e.g. Website maintenance"
-            />
+            >
+              <option value="">Select service</option>
+              {!serviceIsInCatalogue && form.serviceName ? (
+                <option value={form.serviceName}>{form.serviceName}</option>
+              ) : null}
+              {SERVICE_CATEGORIES.map((category) => (
+                <optgroup key={category.key} label={category.label}>
+                  {category.services.map((service) => (
+                    <option key={service} value={service}>
+                      {service}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+              <option value={OTHER_SERVICE}>{OTHER_SERVICE}</option>
+            </Select>
             <Select
               label="Service category"
               value={form.serviceCategory}

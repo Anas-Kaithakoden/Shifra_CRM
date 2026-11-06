@@ -31,6 +31,7 @@ import {
   archiveCustomerForActor,
   checkDuplicateCustomersForActor,
   createCustomerForActor,
+  deleteCustomerPermanentlyForActor,
   getCustomerForActor,
   linkLeadToCustomerForActor,
   listCustomerActivitiesForActor,
@@ -152,6 +153,24 @@ customersRoutes.patch(
       getClientIp(c),
     );
     return ok(c, { customer });
+  },
+);
+
+customersRoutes.delete(
+  "/:id/permanent",
+  requireAuth,
+  requireCsrf,
+  requirePermission(PERMISSIONS.CUSTOMERS_DELETE),
+  async (c) => {
+    const { id } = parseParams(c, idParamSchema);
+    const db = createDb(c.env.DB);
+    await deleteCustomerPermanentlyForActor(
+      db,
+      c.get("user"),
+      id,
+      getClientIp(c),
+    );
+    return ok(c, { deleted: true });
   },
 );
 
