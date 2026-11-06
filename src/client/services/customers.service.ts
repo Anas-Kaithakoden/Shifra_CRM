@@ -46,6 +46,10 @@ export interface CustomerCreateInput {
   postalCode?: string;
   country?: string;
   notes?: string;
+  totalCost?: number;
+  profit?: number;
+  serviceDeliveredOn?: string;
+  renewalOn?: string;
   status?: "active" | "inactive";
   assignedTo?: string;
   allowDuplicate?: boolean;
@@ -65,6 +69,10 @@ export interface CustomerUpdateInput {
   postalCode?: string | null;
   country?: string | null;
   notes?: string | null;
+  totalCost?: number | null;
+  profit?: number | null;
+  serviceDeliveredOn?: string | null;
+  renewalOn?: string | null;
   status?: "active" | "inactive";
   assignedTo?: string | null;
   allowDuplicate?: boolean;

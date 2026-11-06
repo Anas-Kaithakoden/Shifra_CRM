@@ -46,6 +46,10 @@ interface FormState {
   postalCode: string;
   country: string;
   notes: string;
+  totalCost: string;
+  profit: string;
+  serviceDeliveredOn: string;
+  renewalOn: string;
   status: "active" | "inactive";
   assignedTo: string;
 }
@@ -65,6 +69,16 @@ function emptyState(customer?: CustomerDto): FormState {
     postalCode: customer?.postalCode ?? "",
     country: customer?.country ?? "",
     notes: customer?.notes ?? "",
+    totalCost:
+      customer?.totalCost !== null && customer?.totalCost !== undefined
+        ? String(customer.totalCost)
+        : "",
+    profit:
+      customer?.profit !== null && customer?.profit !== undefined
+        ? String(customer.profit)
+        : "",
+    serviceDeliveredOn: customer?.serviceDeliveredOn ?? "",
+    renewalOn: customer?.renewalOn ?? "",
     status:
       customer?.status === "inactive"
         ? "inactive"
@@ -151,6 +165,15 @@ export function CustomerForm({
     setForm((current) => ({ ...current, ...patch }));
   };
 
+  const parseAmount = (value: string): number | undefined => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
   const buildCreateInput = (allowDuplicate: boolean): CustomerCreateInput => ({
     type: form.type,
     name: form.name.trim(),
@@ -165,6 +188,10 @@ export function CustomerForm({
     postalCode: form.postalCode.trim() || undefined,
     country: form.country.trim() || undefined,
     notes: form.notes.trim() || undefined,
+    totalCost: parseAmount(form.totalCost),
+    profit: parseAmount(form.profit),
+    serviceDeliveredOn: form.serviceDeliveredOn || undefined,
+    renewalOn: form.renewalOn || undefined,
     status: form.status,
     assignedTo: form.assignedTo || undefined,
     allowDuplicate: allowDuplicate || undefined,
@@ -186,6 +213,10 @@ export function CustomerForm({
     postalCode: form.postalCode.trim() || null,
     country: form.country.trim() || null,
     notes: form.notes.trim() || null,
+    totalCost: parseAmount(form.totalCost) ?? null,
+    profit: parseAmount(form.profit) ?? null,
+    serviceDeliveredOn: form.serviceDeliveredOn || null,
+    renewalOn: form.renewalOn || null,
     status: form.status,
     assignedTo: canAssign ? form.assignedTo || null : undefined,
     allowDuplicate: allowDuplicate || undefined,
@@ -423,6 +454,52 @@ export function CustomerForm({
               ))}
             </Select>
           ) : null}
+        </div>
+
+        <div className="border-t border-slate-100 pt-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Service &amp; financials
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Total cost (₹)"
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={form.totalCost}
+              onChange={(event) => update({ totalCost: event.target.value })}
+              error={fieldErrors.totalCost}
+              placeholder="0.00"
+            />
+            <Input
+              label="Profit (₹)"
+              type="number"
+              step="0.01"
+              inputMode="decimal"
+              value={form.profit}
+              onChange={(event) => update({ profit: event.target.value })}
+              error={fieldErrors.profit}
+              placeholder="0.00"
+            />
+            <Input
+              label="Service delivered on"
+              type="date"
+              value={form.serviceDeliveredOn}
+              onChange={(event) =>
+                update({ serviceDeliveredOn: event.target.value })
+              }
+              error={fieldErrors.serviceDeliveredOn}
+            />
+            <Input
+              label="Renewal date"
+              type="date"
+              value={form.renewalOn}
+              onChange={(event) => update({ renewalOn: event.target.value })}
+              error={fieldErrors.renewalOn}
+              hint="Leave blank if this service does not renew."
+            />
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

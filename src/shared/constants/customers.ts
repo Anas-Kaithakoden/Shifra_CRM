@@ -14,6 +14,24 @@ export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
   business: "Business",
 };
 
+export const CUSTOMER_SERVICE_CATEGORIES = [
+  "business_solutions",
+  "digital_solutions",
+  "branding_creative",
+] as const;
+
+export type CustomerServiceCategory =
+  (typeof CUSTOMER_SERVICE_CATEGORIES)[number];
+
+export const CUSTOMER_SERVICE_CATEGORY_LABELS: Record<
+  CustomerServiceCategory,
+  string
+> = {
+  business_solutions: "Business Solutions",
+  digital_solutions: "Digital Solutions",
+  branding_creative: "Branding & Creative",
+};
+
 export const CUSTOMER_STATUSES = ["active", "inactive", "archived"] as const;
 
 export type CustomerStatus = (typeof CUSTOMER_STATUSES)[number];

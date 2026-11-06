@@ -49,6 +49,10 @@ export interface CustomerDto {
   gstin: string | null;
   notes: string | null;
   source: string | null;
+  totalCost: number | null;
+  profit: number | null;
+  serviceDeliveredOn: string | null;
+  renewalOn: string | null;
   status: CustomerStatus;
   archivedAt: string | null;
   assignedTo: string | null;
@@ -194,6 +198,10 @@ export interface ConvertLeadCustomerInput {
   gstin?: string;
   notes?: string;
   source?: string;
+  totalCost?: number;
+  profit?: number;
+  serviceDeliveredOn?: string;
+  renewalOn?: string;
   assignedTo?: string;
 }
 

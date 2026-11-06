@@ -9,6 +9,7 @@ import {
   CalendarDays,
   Clock3,
   Globe2,
+  IndianRupee,
   Link2,
   Mail,
   MapPin,
@@ -16,8 +17,10 @@ import {
   Pencil,
   Phone,
   Plus,
+  RefreshCw,
   RotateCcw,
   StickyNote,
+  TrendingUp,
   Target,
   Trophy,
   UserRound,
@@ -36,6 +39,7 @@ import { ApiError } from "../lib/api";
 import {
   formatCrmDate,
   formatCrmDateTime,
+  formatCurrencyInr,
   formatRelativeTime,
 } from "../lib/format";
 import { hasPermission } from "../lib/permissions";
@@ -578,6 +582,55 @@ export function CustomerDetailPage() {
                       </InfoRow>
                     </div>
                   ) : null}
+                </CardBody>
+              </Card>
+
+              <Card>
+                <CardHeader
+                  title="Service &amp; financials"
+                  description="Delivery, cost and renewal details for this customer."
+                />
+                <CardBody className="grid gap-5 sm:grid-cols-2">
+                  <InfoRow
+                    icon={<IndianRupee className="h-4 w-4" aria-hidden="true" />}
+                    label="Total cost"
+                  >
+                    {customer.totalCost !== null ? (
+                      formatCurrencyInr(customer.totalCost)
+                    ) : (
+                      <span className="text-slate-400">Not provided</span>
+                    )}
+                  </InfoRow>
+                  <InfoRow
+                    icon={<TrendingUp className="h-4 w-4" aria-hidden="true" />}
+                    label="Profit"
+                  >
+                    {customer.profit !== null ? (
+                      formatCurrencyInr(customer.profit)
+                    ) : (
+                      <span className="text-slate-400">Not provided</span>
+                    )}
+                  </InfoRow>
+                  <InfoRow
+                    icon={<CalendarDays className="h-4 w-4" aria-hidden="true" />}
+                    label="Service delivered on"
+                  >
+                    {customer.serviceDeliveredOn ? (
+                      formatCrmDate(customer.serviceDeliveredOn)
+                    ) : (
+                      <span className="text-slate-400">Not provided</span>
+                    )}
+                  </InfoRow>
+                  <InfoRow
+                    icon={<RefreshCw className="h-4 w-4" aria-hidden="true" />}
+                    label="Renewal date"
+                  >
+                    {customer.renewalOn ? (
+                      formatCrmDate(customer.renewalOn)
+                    ) : (
+                      <span className="text-slate-400">No renewal</span>
+                    )}
+                  </InfoRow>
                 </CardBody>
               </Card>
 

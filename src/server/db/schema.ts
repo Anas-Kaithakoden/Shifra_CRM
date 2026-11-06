@@ -192,6 +192,14 @@ export const customers = sqliteTable(
     gstin: text("gstin"),
     notes: text("notes"),
     source: text("source"),
+    /** Total amount charged for the service, in INR. */
+    totalCost: real("total_cost"),
+    /** Profit earned on the service, in INR. May be negative for a loss. */
+    profit: real("profit"),
+    /** Date the service was delivered, stored as YYYY-MM-DD. */
+    serviceDeliveredOn: text("service_delivered_on"),
+    /** Optional next renewal date, stored as YYYY-MM-DD. */
+    renewalOn: text("renewal_on"),
     status: text("status", { enum: CUSTOMER_STATUSES })
       .notNull()
       .default("active"),
@@ -225,7 +233,21 @@ export const customers = sqliteTable(
     index("customers_city_idx").on(table.city),
     index("customers_state_idx").on(table.state),
     index("customers_gstin_idx").on(table.gstin),
+    index("customers_service_delivered_on_idx").on(table.serviceDeliveredOn),
+    index("customers_renewal_on_idx").on(table.renewalOn),
     check("customers_type_check", sql`${table.type} in (${customerTypeSql})`),
+    check(
+      "customers_total_cost_check",
+      sql`${table.totalCost} is null or ${table.totalCost} >= 0`,
+    ),
+    check(
+      "customers_service_delivered_on_check",
+      sql`${table.serviceDeliveredOn} is null or date(${table.serviceDeliveredOn}) = ${table.serviceDeliveredOn}`,
+    ),
+    check(
+      "customers_renewal_on_check",
+      sql`${table.renewalOn} is null or date(${table.renewalOn}) = ${table.renewalOn}`,
+    ),
     check(
       "customers_status_check",
       sql`${table.status} in (${customerStatusSql})`,

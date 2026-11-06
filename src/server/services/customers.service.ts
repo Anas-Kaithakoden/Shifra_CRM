@@ -345,6 +345,10 @@ export async function createCustomerForActor(
       postalCode: input.postalCode ?? null,
       country: input.country ?? null,
       notes: input.notes ?? null,
+      totalCost: input.totalCost ?? null,
+      profit: input.profit ?? null,
+      serviceDeliveredOn: input.serviceDeliveredOn ?? null,
+      renewalOn: input.renewalOn ?? null,
       status: input.status,
       statusBeforeArchive: null,
       archivedAt: null,
@@ -520,6 +524,21 @@ export async function updateCustomerForActor(
     "notes",
   ] as const;
   for (const field of simpleFields) {
+    const value = input[field];
+    if (value !== undefined && value !== existing.customer[field]) {
+      (updates as Record<string, unknown>)[field] = value ?? null;
+      previous[field] = existing.customer[field];
+      changedFields.push(field);
+    }
+  }
+
+  const financialFields = [
+    "totalCost",
+    "profit",
+    "serviceDeliveredOn",
+    "renewalOn",
+  ] as const;
+  for (const field of financialFields) {
     const value = input[field];
     if (value !== undefined && value !== existing.customer[field]) {
       (updates as Record<string, unknown>)[field] = value ?? null;
@@ -1460,6 +1479,10 @@ export async function convertLeadToCustomerForActor(
     gstin: requested?.gstin,
     notes: requested?.notes,
     source: requested?.source,
+    totalCost: requested?.totalCost,
+    profit: requested?.profit,
+    serviceDeliveredOn: requested?.serviceDeliveredOn,
+    renewalOn: requested?.renewalOn,
     status: "active",
     assignedTo,
     allowDuplicate: input.allowDuplicate,

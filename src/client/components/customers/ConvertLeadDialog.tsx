@@ -54,6 +54,10 @@ interface CreateFormState {
   country: string;
   website: string;
   notes: string;
+  totalCost: string;
+  profit: string;
+  serviceDeliveredOn: string;
+  renewalOn: string;
   assignedTo: string;
 }
 
@@ -72,8 +76,21 @@ function buildForm(lead: LeadDto): CreateFormState {
     notes: lead.serviceInterest
       ? `Converted from won lead ${lead.leadNumber} (${lead.serviceInterest}).`
       : `Converted from won lead ${lead.leadNumber}.`,
+    totalCost: lead.estimatedValue !== null ? String(lead.estimatedValue) : "",
+    profit: "",
+    serviceDeliveredOn: "",
+    renewalOn: "",
     assignedTo: lead.assignedTo ?? "",
   };
+}
+
+function parseAmount(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function extractDuplicates(details: unknown): DuplicateCustomerDto[] {
@@ -248,6 +265,10 @@ export function ConvertLeadDialog({
           country: form.country.trim() || undefined,
           website: form.website.trim() || undefined,
           notes: form.notes.trim() || undefined,
+          totalCost: parseAmount(form.totalCost),
+          profit: parseAmount(form.profit),
+          serviceDeliveredOn: form.serviceDeliveredOn || undefined,
+          renewalOn: form.renewalOn || undefined,
           assignedTo: canAssign ? form.assignedTo || undefined : undefined,
         },
       });
@@ -629,6 +650,58 @@ export function ConvertLeadDialog({
                       website: event.target.value,
                     }))
                   }
+                />
+                <Input
+                  label="Total cost (₹)"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={form.totalCost}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      totalCost: event.target.value,
+                    }))
+                  }
+                  placeholder="0.00"
+                />
+                <Input
+                  label="Profit (₹)"
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={form.profit}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      profit: event.target.value,
+                    }))
+                  }
+                  placeholder="0.00"
+                />
+                <Input
+                  label="Service delivered on"
+                  type="date"
+                  value={form.serviceDeliveredOn}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      serviceDeliveredOn: event.target.value,
+                    }))
+                  }
+                />
+                <Input
+                  label="Renewal date"
+                  type="date"
+                  value={form.renewalOn}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      renewalOn: event.target.value,
+                    }))
+                  }
+                  hint="Leave blank if this service does not renew."
                 />
                 {canAssign ? (
                   <Select

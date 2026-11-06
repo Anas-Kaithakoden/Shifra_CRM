@@ -231,6 +231,52 @@ describe("customer CRUD and lifecycle", () => {
     expect(auditText).toContain("customer.restored");
   });
 
+  it("stores service cost, profit, delivery and renewal dates", async () => {
+    const owner = await createUser({ role: "owner" });
+    const auth = await login(owner.email);
+
+    const created = await createCustomer(auth, {
+      totalCost: 125000,
+      profit: 32500,
+      serviceDeliveredOn: "2026-02-10",
+      renewalOn: "2027-02-10",
+    });
+
+    expect(created.totalCost).toBe(125000);
+    expect(created.profit).toBe(32500);
+    expect(created.serviceDeliveredOn).toBe("2026-02-10");
+    expect(created.renewalOn).toBe("2027-02-10");
+
+    const listed = await listCustomers(auth, "?pageSize=100");
+    expect(listed.items.find((row) => row.id === created.id)).toMatchObject({
+      totalCost: 125000,
+      profit: 32500,
+      serviceDeliveredOn: "2026-02-10",
+      renewalOn: "2027-02-10",
+    });
+
+    const updateResponse = await apiRequest(`/api/customers/${created.id}`, {
+      method: "PATCH",
+      auth,
+      body: { totalCost: 130000, profit: -5000, renewalOn: null },
+    });
+    expect(updateResponse.status).toBe(200);
+    const updated = await parseData<{ customer: CustomerDetailDto }>(
+      updateResponse,
+    );
+    expect(updated.customer.totalCost).toBe(130000);
+    expect(updated.customer.profit).toBe(-5000);
+    expect(updated.customer.serviceDeliveredOn).toBe("2026-02-10");
+    expect(updated.customer.renewalOn).toBeNull();
+
+    const invalidDate = await apiRequest(`/api/customers/${created.id}`, {
+      method: "PATCH",
+      auth,
+      body: { renewalOn: "10-02-2027" },
+    });
+    await expectError(invalidDate, 400, "validation_error");
+  });
+
   it("detects normalized duplicates and requires an explicit override", async () => {
     const owner = await createUser({ role: "owner" });
     const auth = await login(owner.email);

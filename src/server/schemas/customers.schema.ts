@@ -67,6 +67,40 @@ const isoDateTimeSchema = z.iso.datetime({ offset: true });
 const websiteSchema = nullableTrimmedText(300, "Website");
 const notesSchema = nullableTrimmedText(5000, "Notes");
 
+function optionalAmountSchema(label: string, minimum?: number) {
+  const amount = z.coerce.number().finite();
+  return z.preprocess(
+    (value) => (value === "" || value === null ? undefined : value),
+    (minimum === undefined
+      ? amount
+      : amount.min(minimum, `${label} cannot be less than ${minimum}.`)
+    ).optional(),
+  );
+}
+
+function nullableAmountSchema(label: string, minimum?: number) {
+  const amount = z.coerce.number().finite();
+  return z.preprocess(
+    (value) => (value === "" ? null : value),
+    (minimum === undefined
+      ? amount
+      : amount.min(minimum, `${label} cannot be less than ${minimum}.`)
+    )
+      .nullable()
+      .optional(),
+  );
+}
+
+const optionalDateSchema = z.preprocess(
+  (value) => (value === "" || value === null ? undefined : value),
+  z.iso.date().optional(),
+);
+
+const nullableDateSchema = z.preprocess(
+  (value) => (value === "" ? null : value),
+  z.iso.date().nullable().optional(),
+);
+
 export const createCustomerSchema = z.object({
   type: z.enum(CUSTOMER_TYPES).default("individual"),
   name: z
@@ -89,6 +123,10 @@ export const createCustomerSchema = z.object({
   gstin: optionalTrimmedText(20, "GSTIN"),
   notes: optionalTrimmedText(5000, "Notes"),
   source: optionalTrimmedText(120, "Source"),
+  totalCost: optionalAmountSchema("Total cost", 0),
+  profit: optionalAmountSchema("Profit"),
+  serviceDeliveredOn: optionalDateSchema,
+  renewalOn: optionalDateSchema,
   status: z.enum(["active", "inactive"]).default("active"),
   assignedTo: z.uuid("Choose a valid employee.").optional(),
   allowDuplicate: z.boolean().optional(),
@@ -118,6 +156,10 @@ export const updateCustomerSchema = z
     gstin: nullableTrimmedText(20, "GSTIN"),
     notes: notesSchema,
     source: nullableTrimmedText(120, "Source"),
+    totalCost: nullableAmountSchema("Total cost", 0),
+    profit: nullableAmountSchema("Profit"),
+    serviceDeliveredOn: nullableDateSchema,
+    renewalOn: nullableDateSchema,
     status: z.enum(["active", "inactive"]).optional(),
     assignedTo: z.uuid("Choose a valid employee.").nullable().optional(),
     allowDuplicate: z.boolean().optional(),
@@ -258,6 +300,10 @@ export const convertLeadSchema = z
         gstin: z.string().trim().max(20).optional(),
         notes: z.string().trim().max(5000).optional(),
         source: z.string().trim().max(120).optional(),
+        totalCost: optionalAmountSchema("Total cost", 0),
+        profit: optionalAmountSchema("Profit"),
+        serviceDeliveredOn: optionalDateSchema,
+        renewalOn: optionalDateSchema,
         assignedTo: z.uuid("Choose a valid employee.").optional(),
       })
       .optional(),
