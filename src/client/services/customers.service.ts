@@ -13,6 +13,8 @@ import type {
   CustomerActivityDto,
   CustomerContactDto,
   CustomerDashboardStatsDto,
+  CustomerServiceDto,
+  CustomerServiceInput,
   CustomerDetailDto,
   CustomerLeadDto,
   CustomerListItemDto,
@@ -259,6 +261,16 @@ export const customersService = {
       `/leads/${leadId}/convert-to-customer`,
       { method: "POST", body: input },
     );
+  },
+
+  addService(
+    id: string,
+    input: CustomerServiceInput,
+  ): Promise<CustomerServiceDto> {
+    return apiRequest<{ service: CustomerServiceDto }>(
+      `/customers/${id}/services`,
+      { method: "POST", body: input },
+    ).then((result) => result.service);
   },
 
   dashboardStats(): Promise<CustomerDashboardStatsDto> {
