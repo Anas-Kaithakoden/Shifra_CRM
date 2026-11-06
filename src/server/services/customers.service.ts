@@ -14,6 +14,7 @@ import type {
   CustomerDashboardStatsDto,
   CustomerDetailDto,
   CustomerListItemDto,
+  CustomerServiceDto,
   CustomerMonthlyGrowthRow,
   DuplicateCustomerDto,
   CustomerDuplicateMatch,
@@ -47,6 +48,10 @@ import {
   type CustomerWithRelations,
 } from "../db/queries/customers.queries";
 import {
+  insertCustomerService,
+  listCustomerServices,
+} from "../db/queries/customer-services.queries";
+import {
   findLeadById,
   type LeadWithRelations,
 } from "../db/queries/leads.queries";
@@ -56,6 +61,7 @@ import type {
   CustomerRow,
   NewCustomerContactRow,
   NewCustomerRow,
+  NewCustomerServiceRow,
 } from "../db/schema";
 import { badRequest, conflict, forbidden, notFound } from "../lib/errors";
 import { newId } from "../lib/ids";
@@ -77,6 +83,7 @@ import {
   toCustomerContactDto,
   toCustomerDetailDto,
   toCustomerListItemDto,
+  toCustomerServiceDto,
   toDuplicateCustomerDto,
 } from "./customer-mappers";
 import { recordLeadActivity } from "./lead-activity.service";
@@ -93,6 +100,7 @@ import type {
   ListCustomersQuery,
   UpdateCustomerContactInput,
   UpdateCustomerInput,
+  CreateCustomerServiceInput,
 } from "../schemas/customers.schema";
 
 function normalizeBusinessName(value: string | null | undefined): string | null {
@@ -252,13 +260,54 @@ export async function getCustomerForActor(
   id: string,
 ): Promise<CustomerDetailDto> {
   const row = await getCustomerRowForActor(db, actor, id);
-  const [contacts, leads, stats] = await Promise.all([
+  const [contacts, services, leads, stats] = await Promise.all([
     listCustomerContacts(db, id),
+    listCustomerServices(db, id),
     listCustomerLeads(db, id),
     countCustomerLeads(db, id),
   ]);
 
-  return toCustomerDetailDto({ row, contacts, leads, stats });
+  return toCustomerDetailDto({ row, contacts, services, leads, stats });
+}
+
+export async function addCustomerServiceForActor(
+  db: AppDatabase,
+  actor: AuthUserDto,
+  customerId: string,
+  input: CreateCustomerServiceInput,
+  ipAddress: string | null,
+): Promise<CustomerServiceDto> {
+  const customer = await getCustomerRowForActor(db, actor, customerId);
+  if (!canManageCustomer(actor, customer.customer)) {
+    throw forbidden("You cannot add services for this customer.");
+  }
+  if (customer.customer.status === "archived") {
+    throw conflict("customer_archived", "Restore this customer before adding services.");
+  }
+
+  const now = nowIso();
+  const values: NewCustomerServiceRow = {
+    id: newId(),
+    customerId,
+    serviceName: input.serviceName,
+    serviceCategory: input.serviceCategory,
+    totalCost: input.totalCost,
+    profit: input.profit,
+    serviceDeliveredOn: input.serviceDeliveredOn,
+    renewalOn: input.renewalOn,
+    createdBy: actor.id,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const service = await insertCustomerService(db, values);
+  await recordCustomerAudit(db, {
+    actorId: actor.id,
+    action: AUDIT_ACTIONS.CUSTOMER_SERVICE_ADDED,
+    customerId,
+    ipAddress,
+    metadata: { serviceId: service.id, serviceName: service.serviceName },
+  });
+  return toCustomerServiceDto(service);
 }
 
 export async function checkDuplicateCustomersForActor(
@@ -1649,5 +1698,4 @@ export async function getCustomerDashboardStatsForActor(
     generatedAt: now,
   };
 }
-
 

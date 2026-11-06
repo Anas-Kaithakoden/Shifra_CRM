@@ -13,6 +13,7 @@ import {
   createCustomerActivitySchema,
   createCustomerContactSchema,
   createCustomerNoteSchema,
+  createCustomerServiceSchema,
   createCustomerSchema,
   duplicateCustomerQuerySchema,
   linkCustomerLeadSchema,
@@ -25,6 +26,7 @@ import {
   addCustomerActivityForActor,
   addCustomerContactForActor,
   addCustomerNoteForActor,
+  addCustomerServiceForActor,
   archiveCustomerForActor,
   checkDuplicateCustomersForActor,
   createCustomerForActor,
@@ -258,6 +260,26 @@ customersRoutes.get(
       items,
       buildPagination(query.page, query.pageSize, total),
     );
+  },
+);
+
+customersRoutes.post(
+  "/:id/services",
+  requireAuth,
+  requireCsrf,
+  requirePermission(PERMISSIONS.CUSTOMERS_UPDATE),
+  async (c) => {
+    const { id } = parseParams(c, idParamSchema);
+    const input = await parseJson(c, createCustomerServiceSchema);
+    const db = createDb(c.env.DB);
+    const service = await addCustomerServiceForActor(
+      db,
+      c.get("user"),
+      id,
+      input,
+      getClientIp(c),
+    );
+    return ok(c, { service }, 201);
   },
 );
 

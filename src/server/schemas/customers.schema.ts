@@ -173,6 +173,19 @@ export const updateCustomerSchema = z
     message: "Provide at least one field to update.",
   });
 
+export const createCustomerServiceSchema = z.object({
+  serviceName: z
+    .string()
+    .trim()
+    .min(1, "Enter a service name.")
+    .max(160, "Service name is too long."),
+  serviceCategory: z.enum(CUSTOMER_SERVICE_CATEGORIES).optional(),
+  totalCost: optionalAmountSchema("Total cost", 0),
+  profit: optionalAmountSchema("Profit"),
+  serviceDeliveredOn: optionalDateSchema,
+  renewalOn: optionalDateSchema,
+});
+
 export const listCustomersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
@@ -322,6 +335,9 @@ export const convertLeadSchema = z
 
 export type CreateCustomerInput = z.infer<typeof createCustomerSchema>;
 export type UpdateCustomerInput = z.infer<typeof updateCustomerSchema>;
+export type CreateCustomerServiceInput = z.infer<
+  typeof createCustomerServiceSchema
+>;
 export type ListCustomersQuery = z.infer<typeof listCustomersQuerySchema>;
 export type DuplicateCustomerQuery = z.infer<
   typeof duplicateCustomerQuerySchema

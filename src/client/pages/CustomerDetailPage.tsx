@@ -66,6 +66,7 @@ import {
   CustomerStatusBadge,
   CustomerTimeline,
   CustomerTypeBadge,
+  CustomerServiceForm,
   LinkLeadDialog,
 } from "../components/customers";
 import { EntityTasksSection } from "../components/tasks";
@@ -182,6 +183,7 @@ export function CustomerDetailPage() {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [serviceFormOpen, setServiceFormOpen] = useState(false);
   const [activityType, setActivityType] =
     useState<ManualCustomerActivityType>("note");
   const [activityTitle, setActivityTitle] = useState("");
@@ -757,24 +759,107 @@ export function CustomerDetailPage() {
           ) : null}
 
           {tab === "service" ? (
-            <Card>
-              <CardHeader
-                title="Service history"
-                description="Won purchases only. Enquiries and active opportunities stay under Enquiries & Leads."
-              />
-              <CardBody className="space-y-4">
-                <div className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2.5 text-xs text-slate-600">
-                  This history is based on won leads. Projects, invoices and
-                  payments are not tracked in this module yet.
-                </div>
-                <CustomerLeads
-                  leads={customer.leads}
-                  canLink={false}
-                  onLink={() => undefined}
-                  view="won"
+            <div className="space-y-5">
+              <Card>
+                <CardHeader
+                  title="Customer services"
+                  description="Services delivered or purchased by this customer."
+                  action={
+                    canUpdate && !isArchived ? (
+                      <Button
+                        size="sm"
+                        onClick={() => setServiceFormOpen(true)}
+                        leftIcon={
+                          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        }
+                      >
+                        Add service
+                      </Button>
+                    ) : undefined
+                  }
                 />
-              </CardBody>
-            </Card>
+                <CardBody>
+                  {customer.services.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                      No services have been added to this customer yet.
+                    </p>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {customer.services.map((service) => (
+                        <div
+                          key={service.id}
+                          className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium text-slate-900">
+                              {service.serviceName}
+                            </p>
+                            {service.serviceCategory ? (
+                              <Badge variant="brand" className="mt-1.5">
+                                {
+                                  CUSTOMER_SERVICE_CATEGORY_LABELS[
+                                    service.serviceCategory
+                                  ]
+                                }
+                              </Badge>
+                            ) : null}
+                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                              {service.serviceDeliveredOn ? (
+                                <span>
+                                  Delivered{" "}
+                                  {formatCrmDate(service.serviceDeliveredOn)}
+                                </span>
+                              ) : null}
+                              {service.renewalOn ? (
+                                <span>
+                                  Renews {formatCrmDate(service.renewalOn)}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 gap-5 text-sm">
+                            {service.totalCost !== null ? (
+                              <div>
+                                <p className="text-[11px] text-slate-400">
+                                  Total cost
+                                </p>
+                                <p className="font-medium text-slate-700">
+                                  {formatCurrencyInr(service.totalCost)}
+                                </p>
+                              </div>
+                            ) : null}
+                            {service.profit !== null ? (
+                              <div>
+                                <p className="text-[11px] text-slate-400">
+                                  Profit
+                                </p>
+                                <p className="font-medium text-slate-700">
+                                  {formatCurrencyInr(service.profit)}
+                                </p>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+              <Card>
+                <CardHeader
+                  title="Won enquiries"
+                  description="Won leads linked to this customer."
+                />
+                <CardBody>
+                  <CustomerLeads
+                    leads={customer.leads}
+                    canLink={false}
+                    onLink={() => undefined}
+                    view="won"
+                  />
+                </CardBody>
+              </Card>
+            </div>
           ) : null}
 
           {tab === "activity" ? (
@@ -1165,6 +1250,11 @@ export function CustomerDetailPage() {
         onClose={() => setLinkOpen(false)}
         customerId={customer.id}
         customerName={customerName}
+      />
+      <CustomerServiceForm
+        open={serviceFormOpen}
+        onClose={() => setServiceFormOpen(false)}
+        customerId={id}
       />
 
       <ConfirmDialog

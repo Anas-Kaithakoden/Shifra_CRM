@@ -108,6 +108,27 @@ export function toCustomerContactDto(
   };
 }
 
+export function toCustomerServiceDto(
+  service: CustomerServiceRow,
+): CustomerServiceDto {
+  return {
+    id: service.id,
+    customerId: service.customerId,
+    serviceName: service.serviceName,
+    serviceCategory: service.serviceCategory,
+    totalCost: service.totalCost,
+    profit: service.profit,
+    serviceDeliveredOn: service.serviceDeliveredOn,
+    renewalOn: service.renewalOn,
+    renewalReminderFor: service.renewalReminderFor,
+    renewalReminderSentAt: service.renewalReminderSentAt,
+    renewalReminderAttemptedAt: service.renewalReminderAttemptedAt,
+    renewalReminderError: service.renewalReminderError,
+    createdAt: service.createdAt,
+    updatedAt: service.updatedAt,
+  };
+}
+
 export function toCustomerListItemDto(
   row: CustomerWithRelations,
   contacts: CustomerContactRow[],
@@ -150,6 +171,7 @@ export function toCustomerLeadDto(row: CustomerLeadWithUser): CustomerLeadDto {
 export function toCustomerDetailDto(options: {
   row: CustomerWithRelations;
   contacts: CustomerContactRow[];
+  services: CustomerServiceRow[];
   leads: CustomerLeadWithUser[];
   stats: { leadCount: number; wonLeadCount: number; openLeadCount: number };
 }): CustomerDetailDto {
@@ -159,6 +181,7 @@ export function toCustomerDetailDto(options: {
     contacts,
     primaryContact:
       contacts.find((contact) => contact.isPrimary) ?? null,
+    services: options.services.map(toCustomerServiceDto),
     leads: options.leads.map(toCustomerLeadDto),
     stats: {
       ...options.stats,

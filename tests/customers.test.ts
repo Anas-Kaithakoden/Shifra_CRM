@@ -489,6 +489,57 @@ describe("customer CRUD and lifecycle", () => {
       ]),
     );
   });
+
+  it("adds multiple customer services and returns them in customer details", async () => {
+    const owner = await createUser({ role: "owner" });
+    const auth = await login(owner.email);
+    const customer = await createCustomer(auth, { name: "Multi-service Customer" });
+
+    const firstResponse = await apiRequest(
+      `/api/customers/${customer.id}/services`,
+      {
+        method: "POST",
+        auth,
+        body: {
+          serviceName: "Website maintenance",
+          serviceCategory: "digital_solutions",
+          totalCost: 12000.5,
+          profit: 2500,
+          serviceDeliveredOn: "2026-01-15",
+          renewalOn: "2027-01-15",
+        },
+      },
+    );
+    expect(firstResponse.status).toBe(201);
+    const first = await parseData<{ service: { id: string } }>(firstResponse);
+
+    const secondResponse = await apiRequest(
+      `/api/customers/${customer.id}/services`,
+      {
+        method: "POST",
+        auth,
+        body: { serviceName: "Logo design" },
+      },
+    );
+    expect(secondResponse.status).toBe(201);
+
+    const detail = await getCustomer(auth, customer.id);
+    expect(detail.services).toHaveLength(2);
+    expect(detail.services).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: first.service.id,
+          serviceName: "Website maintenance",
+          serviceCategory: "digital_solutions",
+          totalCost: 12000.5,
+          profit: 2500,
+          serviceDeliveredOn: "2026-01-15",
+          renewalOn: "2027-01-15",
+        }),
+        expect.objectContaining({ serviceName: "Logo design" }),
+      ]),
+    );
+  });
 });
 
 describe("customer access control", () => {
