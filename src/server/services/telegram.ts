@@ -13,7 +13,7 @@ import type { TelegramStatusDto } from "../../shared/types/tasks";
 import { CUSTOMER_SERVICE_CATEGORY_LABELS } from "../../shared/constants/customers";
 import type { Env } from "../config";
 import type { AppDatabase } from "../db/client";
-import { customers, tasks, type CustomerRow, type TaskRow } from "../db/schema";
+import { customers, customerServices, tasks, type CustomerRow, type TaskRow } from "../db/schema";
 import { getCrmDayBounds, nowIso } from "../lib/time";
 
 export function remindersEnabled(env: Env): boolean {
@@ -338,14 +338,15 @@ export async function processCustomerRenewalReminders(
 
   const candidates = await db
     .select()
-    .from(customers)
+    .from(customerServices)
+    .innerJoin(customers, eq(customerServices.customerId, customers.id))
     .where(
       and(
-        isNotNull(customers.renewalOn),
-        gte(customers.renewalOn, startKey),
-        lte(customers.renewalOn, endKey),
+        isNotNull(customerServices.renewalOn),
+        gte(customerServices.renewalOn, startKey),
+        lte(customerServices.renewalOn, endKey),
         ne(customers.status, "archived"),
-        sql`(${customers.renewalReminderFor} is null or ${customers.renewalReminderFor} != ${customers.renewalOn})`,
+        sql`(${customerServices.renewalReminderFor} is null or ${customerServices.renewalReminderFor} != ${customerServices.renewalOn})`,
       ),
     )
     .all();
@@ -354,11 +355,23 @@ export async function processCustomerRenewalReminders(
   let failed = 0;
   let skipped = 0;
 
-  for (const customer of candidates) {
+  for (const row of candidates) {
+    const service = row.customer_services;
+    const customer = row.customers;
+    const merged = {
+      ...customer,
+      serviceName: service.serviceName,
+      serviceCategory: service.serviceCategory,
+      renewalOn: service.renewalOn,
+      renewalReminderFor: service.renewalReminderFor,
+      renewalReminderSentAt: service.renewalReminderSentAt,
+      renewalReminderAttemptedAt: service.renewalReminderAttemptedAt,
+      renewalReminderError: service.renewalReminderError,
+    };
     // Retry failed sends after a short backoff instead of hammering Telegram
     // every minute. Successful sends are excluded by the query above.
-    if (customer.renewalReminderError && customer.renewalReminderAttemptedAt) {
-      const lastAttemptMs = Date.parse(customer.renewalReminderAttemptedAt);
+    if (merged.renewalReminderError && merged.renewalReminderAttemptedAt) {
+      const lastAttemptMs = Date.parse(merged.renewalReminderAttemptedAt);
       if (
         Number.isFinite(lastAttemptMs) &&
         nowMs - lastAttemptMs < RENEWAL_REMINDER_RETRY_BACKOFF_MS
@@ -369,7 +382,7 @@ export async function processCustomerRenewalReminders(
     }
 
     const message = formatRenewalReminderMessage(
-      customer,
+      merged as CustomerRow,
       startKey,
       env.APP_URL,
     );
@@ -377,25 +390,25 @@ export async function processCustomerRenewalReminders(
 
     if (result.ok) {
       await db
-        .update(customers)
+        .update(customerServices)
         .set({
-          renewalReminderFor: customer.renewalOn,
+          renewalReminderFor: service.renewalOn,
           renewalReminderSentAt: now,
           renewalReminderAttemptedAt: now,
           renewalReminderError: null,
           updatedAt: now,
         })
-        .where(eq(customers.id, customer.id));
+        .where(eq(customerServices.id, service.id));
       sent += 1;
     } else {
       await db
-        .update(customers)
+        .update(customerServices)
         .set({
           renewalReminderAttemptedAt: now,
           renewalReminderError: result.error ?? "Failed to send message",
           updatedAt: now,
         })
-        .where(eq(customers.id, customer.id));
+        .where(eq(customerServices.id, service.id));
       failed += 1;
     }
   }
