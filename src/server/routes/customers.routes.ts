@@ -18,6 +18,7 @@ import {
   duplicateCustomerQuerySchema,
   linkCustomerLeadSchema,
   listCustomerActivitiesQuerySchema,
+  listCustomerRenewalsQuerySchema,
   listCustomersQuerySchema,
   updateCustomerContactSchema,
   updateCustomerSchema,
@@ -33,6 +34,7 @@ import {
   getCustomerForActor,
   linkLeadToCustomerForActor,
   listCustomerActivitiesForActor,
+  listCustomerRenewalsForActor,
   listCustomersForActor,
   removeCustomerContactForActor,
   restoreCustomerForActor,
@@ -46,6 +48,26 @@ const contactParamsSchema = z.object({
 });
 
 export const customersRoutes = new Hono<AppEnv>();
+
+customersRoutes.get(
+  "/renewals",
+  requireAuth,
+  requirePermission(PERMISSIONS.CUSTOMERS_READ),
+  async (c) => {
+    const query = parseQuery(c, listCustomerRenewalsQuerySchema);
+    const db = createDb(c.env.DB);
+    const result = await listCustomerRenewalsForActor(
+      db,
+      c.get("user"),
+      query,
+    );
+    return ok(c, {
+      items: result.items,
+      counts: result.counts,
+      pagination: buildPagination(query.page, query.pageSize, result.total),
+    });
+  },
+);
 
 customersRoutes.get(
   "/",

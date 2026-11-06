@@ -264,6 +264,14 @@ export const listCustomerActivitiesQuerySchema = z.object({
   activityType: z.enum(CUSTOMER_ACTIVITY_TYPES).optional(),
 });
 
+export const listCustomerRenewalsQuerySchema = z.object({
+  filter: z
+    .enum(["all", "overdue", "due_soon", "upcoming", "next_30"])
+    .default("all"),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export const createCustomerActivitySchema = z.object({
   activityType: z.enum(MANUAL_CUSTOMER_ACTIVITY_TYPES),
   title: z
@@ -350,6 +358,9 @@ export type UpdateCustomerContactInput = z.infer<
 >;
 export type ListCustomerActivitiesQuery = z.infer<
   typeof listCustomerActivitiesQuerySchema
+>;
+export type ListCustomerRenewalsQuery = z.infer<
+  typeof listCustomerRenewalsQuerySchema
 >;
 export type CreateCustomerActivityInput = z.infer<
   typeof createCustomerActivitySchema

@@ -18,6 +18,7 @@ import type {
   CustomerDetailDto,
   CustomerLeadDto,
   CustomerListItemDto,
+  CustomerRenewalListDto,
   DuplicateCustomerDto,
 } from "../../shared/types/customers";
 import { apiRequest } from "../lib/api";
@@ -271,6 +272,20 @@ export const customersService = {
       `/customers/${id}/services`,
       { method: "POST", body: input },
     ).then((result) => result.service);
+  },
+
+  listRenewals(params: {
+    filter?: "all" | "overdue" | "due_soon" | "upcoming" | "next_30";
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<CustomerRenewalListDto> {
+    return apiRequest<CustomerRenewalListDto>(
+      `/customers/renewals?${toQuery({
+        filter: params.filter ?? "all",
+        page: params.page ?? 1,
+        pageSize: params.pageSize ?? 20,
+      })}`,
+    );
   },
 
   dashboardStats(): Promise<CustomerDashboardStatsDto> {

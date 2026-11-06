@@ -12,6 +12,7 @@ Version 3 keeps the Version 1 platform foundation and the Version 2 Lead Managem
 - **Follow-ups**: Today, Upcoming, Overdue and Completed views with complete, reschedule and cancel actions
 - **Customers**: list, search, filters, status tabs, create, edit and archive
 - **Customer detail**: overview, contacts, linked enquiries/leads, service history, notes and a permanent activity timeline
+- **Renewal reminders**: team-visible renewal dates and sent/pending/failed reminder status for customer services
 - **Lead-to-customer conversion**: only for Won leads, with duplicate detection, employee-confirmed linking or creation, and idempotent retries
 - **Duplicate detection** by normalised phone/email/business name with an inspect-and-override flow
 - Dashboard with **real** lead and customer metrics, pipeline overview, lead sources, customer growth, recent leads/customers and follow-ups
@@ -735,6 +736,7 @@ record-scope that the list endpoints use.
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/customers` | `customers:read` | Paginated, filtered, sorted customer list |
+| `GET` | `/api/customers/renewals` | `customers:read` | Paginated renewal dates and reminder delivery statuses |
 | `GET` | `/api/customers/:id` | `customers:read` | Detail with contacts, linked leads, stats and timeline summary |
 | `GET` | `/api/customers/duplicates` | `customers:read` | Duplicate lookup by phone, email and/or business name |
 | `POST` | `/api/customers` | `customers:create` | Create a customer and its primary contact |
@@ -751,6 +753,12 @@ record-scope that the list endpoints use.
 | `POST` | `/api/customers/:id/notes` | `customers:notes` | Append a note |
 | `GET` | `/api/customers/:id/leads` | `customers:read` | Linked leads and service-history counts |
 | `POST` | `/api/customers/:id/leads` | `customers:link_leads` | Link an accessible lead as an enquiry |
+| `POST` | `/api/customers/:id/services` | `customers:update` | Add a service with an optional renewal date |
+
+The **Renewal Reminders** customer navigation view lists services with renewal
+dates for non-archived customers visible to the signed-in user. Filter by
+overdue, due within seven days, next 30 days or all upcoming. Reminder state is
+shown as pending, sent or failed.
 
 Customer list query parameters:
 
@@ -1123,6 +1131,7 @@ The command should return nothing.
 - Customers list with status tabs, search, filters, sorting and pagination
 - Customer create/edit/archive/restore with sequential customer numbers
 - Customer detail with contacts, linked enquiries/leads, service history, notes and activity timeline
+- Customer renewal overview with reminder status and due-date filters
 - Multiple contacts per customer with a single-primary invariant
 - Team-wide duplicate detection by phone/email/business name with explicit override
 - Won-lead conversion by linking an existing customer or creating one after confirmation

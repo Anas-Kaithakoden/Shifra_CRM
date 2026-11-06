@@ -104,6 +104,12 @@ const CUSTOMER_NAV_ITEMS: NavItem[] = [
     icon: UserX,
     permission: "customers:read",
   },
+  {
+    label: "Renewal Reminders",
+    to: "/customers/renewals",
+    icon: CalendarClock,
+    permission: "customers:read",
+  },
 ];
 
 const TASK_NAV_ITEMS: NavItem[] = [
@@ -170,8 +176,11 @@ export function Sidebar({
     if (!pathActive) {
       return false;
     }
+    if (location.pathname.startsWith("/customers/")) {
+      return to === location.pathname;
+    }
     if (location.pathname !== "/customers") {
-      return to === "/customers";
+      return false;
     }
     const target = new URLSearchParams(to.split("?")[1] ?? "");
     return (target.get("status") ?? "all") === activeCustomerStatus;

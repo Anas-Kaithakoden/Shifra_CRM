@@ -10,6 +10,7 @@ import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { ChangePasswordPage } from "./pages/ChangePasswordPage";
 import { CustomerDetailPage } from "./pages/CustomerDetailPage";
 import { CustomersPage } from "./pages/CustomersPage";
+import { CustomerRenewalsPage } from "./pages/CustomerRenewalsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { EmployeeDetailPage } from "./pages/EmployeeDetailPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
@@ -86,6 +87,14 @@ export function App() {
               element={
                 <RequirePermission permission={PERMISSIONS.CUSTOMERS_READ}>
                   <CustomersPage />
+                </RequirePermission>
+              }
+            />
+            <Route
+              path="/customers/renewals"
+              element={
+                <RequirePermission permission={PERMISSIONS.CUSTOMERS_READ}>
+                  <CustomerRenewalsPage />
                 </RequirePermission>
               }
             />

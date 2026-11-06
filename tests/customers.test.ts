@@ -1,5 +1,6 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { getCrmDayBounds } from "../src/server/lib/time";
 import type { Paginated } from "../src/shared/types/api";
 import type {
   ConvertLeadResultDto,
@@ -7,6 +8,7 @@ import type {
   CustomerDashboardStatsDto,
   CustomerDetailDto,
   CustomerListItemDto,
+  CustomerRenewalListDto,
   DuplicateCustomerDto,
 } from "../src/shared/types/customers";
 import type { LeadDto } from "../src/shared/types/leads";
@@ -538,6 +540,89 @@ describe("customer CRUD and lifecycle", () => {
         }),
         expect.objectContaining({ serviceName: "Logo design" }),
       ]),
+    );
+  });
+
+  it("lists renewal reminder statuses for all accessible customer services", async () => {
+    const owner = await createUser({ role: "owner" });
+    const auth = await login(owner.email);
+    const customer = await createCustomer(auth, { name: "Renewal Status Customer" });
+    const { dateKey } = getCrmDayBounds();
+    const addDays = (days: number) => {
+      const date = new Date(`${dateKey}T00:00:00.000Z`);
+      date.setUTCDate(date.getUTCDate() + days);
+      return date.toISOString().slice(0, 10);
+    };
+    const sentAt = new Date().toISOString();
+    const services = [
+      { serviceName: "Sent reminder", renewalOn: addDays(3) },
+      { serviceName: "Failed reminder", renewalOn: addDays(-2) },
+      { serviceName: "Pending reminder", renewalOn: addDays(15) },
+    ];
+    const serviceIds: string[] = [];
+
+    for (const service of services) {
+      const response = await apiRequest(
+        `/api/customers/${customer.id}/services`,
+        { method: "POST", auth, body: service },
+      );
+      expect(response.status).toBe(201);
+      const body = await parseData<{ service: { id: string } }>(response);
+      serviceIds.push(body.service.id);
+    }
+
+    await env.DB.prepare(
+      `UPDATE customer_services
+       SET renewal_reminder_for = ?, renewal_reminder_sent_at = ?
+       WHERE id = ?`,
+    )
+      .bind(services[0]?.renewalOn, sentAt, serviceIds[0])
+      .run();
+    await env.DB.prepare(
+      `UPDATE customer_services
+       SET renewal_reminder_error = ?, renewal_reminder_attempted_at = ?
+       WHERE id = ?`,
+    )
+      .bind("Telegram unavailable", sentAt, serviceIds[1])
+      .run();
+
+    const response = await apiRequest(
+      "/api/customers/renewals?filter=all&pageSize=100",
+      { auth },
+    );
+    expect(response.status).toBe(200);
+    const result = await parseData<CustomerRenewalListDto>(response);
+    expect(result.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          serviceName: "Sent reminder",
+          reminderStatus: "sent",
+          status: "due_soon",
+        }),
+        expect.objectContaining({
+          serviceName: "Failed reminder",
+          reminderStatus: "failed",
+          status: "overdue",
+        }),
+        expect.objectContaining({
+          serviceName: "Pending reminder",
+          reminderStatus: "pending",
+          status: "upcoming",
+        }),
+      ]),
+    );
+
+    const overdueResponse = await apiRequest(
+      "/api/customers/renewals?filter=overdue",
+      { auth },
+    );
+    expect(overdueResponse.status).toBe(200);
+    const overdue = await parseData<CustomerRenewalListDto>(overdueResponse);
+    expect(overdue.items.map((item) => item.serviceName)).toContain(
+      "Failed reminder",
+    );
+    expect(overdue.items.map((item) => item.serviceName)).not.toContain(
+      "Sent reminder",
     );
   });
 });

@@ -49,7 +49,9 @@ import {
 } from "../db/queries/customers.queries";
 import {
   insertCustomerService,
+  listRenewals,
   listCustomerServices,
+  type RenewalListFilters,
 } from "../db/queries/customer-services.queries";
 import {
   findLeadById,
@@ -83,6 +85,7 @@ import {
   toCustomerContactDto,
   toCustomerDetailDto,
   toCustomerListItemDto,
+  toCustomerRenewalDto,
   toCustomerServiceDto,
   toDuplicateCustomerDto,
 } from "./customer-mappers";
@@ -97,6 +100,7 @@ import type {
   DuplicateCustomerQuery,
   LinkCustomerLeadInput,
   ListCustomerActivitiesQuery,
+  ListCustomerRenewalsQuery,
   ListCustomersQuery,
   UpdateCustomerContactInput,
   UpdateCustomerInput,
@@ -268,6 +272,33 @@ export async function getCustomerForActor(
   ]);
 
   return toCustomerDetailDto({ row, contacts, services, leads, stats });
+}
+
+export async function listCustomerRenewalsForActor(
+  db: AppDatabase,
+  actor: AuthUserDto,
+  query: ListCustomerRenewalsQuery,
+) {
+  const { dateKey } = getCrmDayBounds();
+  const addDays = (days: number) => {
+    const date = new Date(`${dateKey}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().slice(0, 10);
+  };
+  const filters: RenewalListFilters = {
+    filter: query.filter,
+    todayKey: dateKey,
+    soonEndKey: addDays(7),
+    next30EndKey: addDays(30),
+    page: query.page,
+    pageSize: query.pageSize,
+  };
+  const result = await listRenewals(db, filters, toCustomerAccessScope(actor));
+  return {
+    items: result.rows.map((row) => toCustomerRenewalDto(row, dateKey)),
+    counts: result.counts,
+    total: result.total,
+  };
 }
 
 export async function addCustomerServiceForActor(
@@ -1698,4 +1729,3 @@ export async function getCustomerDashboardStatsForActor(
     generatedAt: now,
   };
 }
-

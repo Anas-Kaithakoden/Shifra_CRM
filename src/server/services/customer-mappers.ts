@@ -6,6 +6,7 @@ import type {
   CustomerDto,
   CustomerLeadDto,
   CustomerListItemDto,
+  CustomerRenewalDto,
   CustomerServiceDto,
   CustomerUserSummary,
   DuplicateCustomerDto,
@@ -16,6 +17,7 @@ import type {
   CustomerLeadWithUser,
   CustomerWithRelations,
 } from "../db/queries/customers.queries";
+import type { RenewalWithCustomer } from "../db/queries/customer-services.queries";
 import type {
   CustomerContactRow,
   CustomerActivityRow,
@@ -126,6 +128,56 @@ export function toCustomerServiceDto(
     renewalReminderError: service.renewalReminderError,
     createdAt: service.createdAt,
     updatedAt: service.updatedAt,
+  };
+}
+
+export function toCustomerRenewalDto(
+  row: RenewalWithCustomer,
+  todayKey: string,
+): CustomerRenewalDto {
+  const service = row.service;
+  const renewalOn = service.renewalOn;
+  if (!renewalOn) {
+    throw new Error("Cannot map a customer service without a renewal date.");
+  }
+  const daysUntilRenewal = Math.round(
+    (Date.parse(`${renewalOn}T00:00:00.000Z`) -
+      Date.parse(`${todayKey}T00:00:00.000Z`)) /
+      (24 * 60 * 60 * 1000),
+  );
+  const reminderStatus =
+    service.renewalReminderFor === renewalOn &&
+    service.renewalReminderSentAt
+      ? "sent"
+      : service.renewalReminderError
+        ? "failed"
+        : "pending";
+
+  return {
+    serviceId: service.id,
+    customerId: row.customer.id,
+    customerNumber: row.customer.customerNumber,
+    customerName: row.customer.name,
+    businessName: row.customer.businessName,
+    customerStatus: row.customer.status,
+    customerPhone: row.customer.phone,
+    customerEmail: row.customer.email,
+    assignedToName: row.assignedUser?.fullName ?? null,
+    serviceName: service.serviceName,
+    serviceCategory: service.serviceCategory,
+    totalCost: service.totalCost,
+    profit: service.profit,
+    renewalOn,
+    daysUntilRenewal,
+    status:
+      daysUntilRenewal < 0
+        ? "overdue"
+        : daysUntilRenewal <= 7
+          ? "due_soon"
+          : "upcoming",
+    reminderStatus,
+    reminderSentAt: service.renewalReminderSentAt,
+    reminderError: service.renewalReminderError,
   };
 }
 
