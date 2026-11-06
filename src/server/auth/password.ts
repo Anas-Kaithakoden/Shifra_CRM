@@ -5,7 +5,15 @@ import {
 } from "../lib/encoding";
 
 const ALGORITHM = "pbkdf2_sha256";
-const ITERATIONS = 600_000;
+
+/**
+ * Cloudflare Workers' Web Crypto implementation rejects PBKDF2 iteration
+ * counts above 100,000 with a NotSupportedError. Node, browsers and the local
+ * `wrangler dev` runtime do not enforce that cap, which is why a higher count
+ * can pass locally but fail only in production. Keep this at or below the
+ * production ceiling.
+ */
+export const PASSWORD_HASH_ITERATIONS = 100_000;
 const KEY_BITS = 256;
 const SALT_BYTES = 16;
 
@@ -42,17 +50,17 @@ async function derive(
  * Hash a password using PBKDF2-HMAC-SHA256 (Web Crypto).
  *
  * Argon2id is not natively available in the Workers runtime. PBKDF2 with
- * 600,000 iterations follows the current OWASP recommendation for
- * PBKDF2-HMAC-SHA256. The iteration count is stored in the hash so it can be
- * upgraded later without breaking existing accounts.
+ * 100,000 iterations is the maximum the production Workers Web Crypto
+ * implementation supports. The iteration count is stored in the hash so it can
+ * be upgraded later without breaking existing accounts.
  */
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
-  const hash = await derive(password, salt, ITERATIONS);
+  const hash = await derive(password, salt, PASSWORD_HASH_ITERATIONS);
 
   return [
     ALGORITHM,
-    String(ITERATIONS),
+    String(PASSWORD_HASH_ITERATIONS),
     bytesToBase64(salt),
     bytesToBase64(hash),
   ].join("$");
@@ -86,7 +94,22 @@ export async function verifyPassword(
 
     const actual = await derive(password, salt, iterations);
     return timingSafeEqualBytes(actual, expected);
-  } catch {
+  } catch (error) {
+    // Never log the hash or the password. This branch is especially important
+    // in production: a legacy hash created with more iterations than the
+    // Workers runtime allows would otherwise fail silently as "wrong password".
+    const message = error instanceof Error ? error.message : "";
+    if (/pbkdf2/i.test(message) && /iteration/i.test(message)) {
+      const [, iterationsRaw] = storedHash.split("$");
+      console.error("password.verify_unsupported_iterations", {
+        algorithm: ALGORITHM,
+        storedIterations: Number.parseInt(iterationsRaw ?? "", 10) || null,
+        maxSupportedIterations: PASSWORD_HASH_ITERATIONS,
+        hashLength: storedHash.length,
+        runtimeError: message,
+      });
+    }
+
     return false;
   }
 }

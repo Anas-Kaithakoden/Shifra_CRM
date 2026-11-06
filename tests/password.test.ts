@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { hashPassword, verifyPassword } from "../src/server/auth/password";
+import {
+  PASSWORD_HASH_ITERATIONS,
+  hashPassword,
+  verifyPassword,
+} from "../src/server/auth/password";
 import {
   PASSWORD_MIN_LENGTH,
   checkPasswordPolicy,
@@ -12,7 +16,9 @@ describe("password hashing", () => {
 
     expect(parts).toHaveLength(4);
     expect(parts[0]).toBe("pbkdf2_sha256");
-    expect(Number(parts[1])).toBeGreaterThanOrEqual(600_000);
+    expect(Number(parts[1])).toBe(PASSWORD_HASH_ITERATIONS);
+    // Cloudflare Workers rejects PBKDF2 above 100,000 iterations in production.
+    expect(PASSWORD_HASH_ITERATIONS).toBeLessThanOrEqual(100_000);
     expect(await verifyPassword("CorrectHorse#123", hash)).toBe(true);
   });
 

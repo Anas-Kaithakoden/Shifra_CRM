@@ -600,7 +600,7 @@ The script:
 
 - Refuses to create a second owner
 - Validates name, email, and password policy
-- Hashes the password with PBKDF2-HMAC-SHA256 (600,000 iterations)
+- Hashes the password with PBKDF2-HMAC-SHA256 (100,000 iterations, the Cloudflare Workers maximum)
 - Creates default application settings
 - Writes an audit entry
 - Never prints the password
@@ -790,9 +790,11 @@ Audit list supports `action`, `userId`, `from`, and `to` (ISO timestamps).
 
 ## Security model
 
-- **Password hashing** — PBKDF2-HMAC-SHA256, 600,000 iterations, unique 16-byte
-  salt, stored as `pbkdf2_sha256$600000$<salt>$<hash>`. Comparison is
-  timing-safe.
+- **Password hashing** — PBKDF2-HMAC-SHA256, 100,000 iterations, unique 16-byte
+  salt, stored as `pbkdf2_sha256$100000$<salt>$<hash>`. Comparison is
+  timing-safe. 100,000 is the maximum PBKDF2 iteration count supported by the
+  production Cloudflare Workers Web Crypto runtime; Node and `wrangler dev` do
+  not enforce that ceiling, so production always needs to be verified.
 - **Session tokens** — 32 random bytes (hex). The database stores only a SHA-256
   hash. Session cookies are `HttpOnly`, `SameSite=Lax`, `Path=/`, and `Secure`
   when `ENVIRONMENT=production`.
@@ -1018,6 +1020,36 @@ The seed may not have run, or the local database may have been reset. Re-run:
 npm run db:migrate:local
 npm run db:seed
 ```
+
+### Production login fails with `invalid_credentials` but the user exists
+
+Cloudflare Workers' Web Crypto implementation rejects PBKDF2 iteration counts
+above 100,000. `verifyPassword` treats that runtime error as a failed password,
+so a hash created with a higher iteration count (for example an older 600,000
+iteration owner hash) fails only in production. Node, browsers and
+`wrangler dev` do not enforce the cap, which is why the same login can work
+locally.
+
+Confirm the cause with a live Worker log:
+
+```powershell
+npx wrangler tail shifra-nuha-crm --format pretty
+```
+
+Look for `Pbkdf2 failed: iteration counts above 100000 are not supported`. To fix
+an existing account, regenerate its hash with the current 100,000-iteration
+implementation using the reset script, then deploy the current code:
+
+```powershell
+$env:OWNER_PASSWORD = "your-current-password"
+npx tsx scripts/reset-owner-password.ts --remote --yes
+Remove-Item Env:OWNER_PASSWORD
+```
+
+Set `AUTH_DIAGNOSTICS=true` in the Worker `vars` temporarily to log safe login
+diagnostics (normalized email, user found, role, active flag, hash algorithm,
+iteration count and length, and verification result). Passwords, hashes,
+session tokens and cookies are never logged.
 
 ### Lead demo data is missing or stale
 

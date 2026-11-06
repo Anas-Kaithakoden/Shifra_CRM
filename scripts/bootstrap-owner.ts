@@ -6,7 +6,10 @@ import {
   fullNameSchema,
   passwordSchema,
 } from "../src/server/schemas/common.schema";
-import { hashPassword } from "../src/server/auth/password";
+import {
+  PASSWORD_HASH_ITERATIONS,
+  hashPassword,
+} from "../src/server/auth/password";
 import {
   assertUsersTableExists,
   findExistingOwner,
@@ -193,7 +196,11 @@ async function main(): Promise<void> {
   const validatedEmail = validate(emailSchema, email, "Email");
   const validatedPassword = validate(passwordSchema, password, "Password");
 
-  console.log(`Hashing password (PBKDF2-HMAC-SHA256, 600,000 iterations)...`);
+  console.log(
+    `Hashing password (PBKDF2-HMAC-SHA256, ${PASSWORD_HASH_ITERATIONS.toLocaleString(
+      "en-US",
+    )} iterations)...`,
+  );
   const passwordHash = await hashPassword(validatedPassword);
 
   const ownerId = randomUUID();

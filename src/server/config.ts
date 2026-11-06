@@ -3,6 +3,7 @@ import type { AuthUserDto } from "../shared/types/api";
 export interface Env {
   DB: D1Database;
   ENVIRONMENT?: string;
+  AUTH_DIAGNOSTICS?: string;
   APP_URL?: string;
   SESSION_TTL_HOURS?: string;
   SESSION_IDLE_MINUTES?: string;

@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { hashPassword } from "../src/server/auth/password";
+import {
+  PASSWORD_HASH_ITERATIONS,
+  hashPassword,
+} from "../src/server/auth/password";
 import { passwordSchema } from "../src/server/schemas/common.schema";
 import {
   assertUsersTableExists,
@@ -153,7 +156,9 @@ async function main(): Promise<void> {
 
   const validatedPassword = validatePassword(password);
   console.log(
-    `Hashing password (PBKDF2-HMAC-SHA256, 600,000 iterations) for ${owner.email}...`,
+    `Hashing password (PBKDF2-HMAC-SHA256, ${PASSWORD_HASH_ITERATIONS.toLocaleString(
+      "en-US",
+    )} iterations) for ${owner.email}...`,
   );
   const passwordHash = await hashPassword(validatedPassword);
   const now = new Date().toISOString();

@@ -29,6 +29,7 @@ export async function login(
   input: LoginInput,
   ipAddress: string | null,
   ttlHours: number,
+  diagnostics = false,
 ): Promise<LoginResult> {
   await assertLoginAllowed(db, input.email, ipAddress);
 
@@ -42,6 +43,28 @@ export async function login(
       : !passwordValid
         ? "invalid_password"
         : "inactive_account";
+
+    if (diagnostics) {
+      const hashForDiagnostics = user?.passwordHash ?? storedHash;
+      const [hashAlgorithm, hashIterationsRaw] =
+        hashForDiagnostics.split("$");
+
+      // Safe diagnostics only: never log the password, the hash, a session
+      // token or a cookie. The normalized email is already stored in the audit
+      // log for every failed login.
+      console.log("auth.login_diagnostic", {
+        normalizedEmail: input.email,
+        userFound: Boolean(user),
+        role: user?.role ?? null,
+        isActive: user?.isActive ?? null,
+        hashAlgorithm: hashAlgorithm ?? null,
+        hashIterations:
+          Number.parseInt(hashIterationsRaw ?? "", 10) || null,
+        hashLength: hashForDiagnostics.length,
+        passwordValid,
+        reason,
+      });
+    }
 
     await recordLoginAttempt(db, input.email, ipAddress, false);
     await recordAudit(db, {

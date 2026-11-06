@@ -53,7 +53,13 @@ authRoutes.post("/login", async (c) => {
   const ipAddress = getClientIp(c);
   const ttlHours = getSessionTtlHours(c.env);
 
-  const result = await login(db, input, ipAddress, ttlHours);
+  const result = await login(
+    db,
+    input,
+    ipAddress,
+    ttlHours,
+    c.env.AUTH_DIAGNOSTICS === "true",
+  );
 
   // Session fixation defence: never carry a pre-authentication session into
   // the authenticated session.
