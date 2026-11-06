@@ -299,6 +299,71 @@ export const customers = sqliteTable(
   ],
 );
 
+export const customerServices = sqliteTable(
+  "customer_services",
+  {
+    id: text("id").primaryKey(),
+    customerId: text("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    serviceName: text("service_name").notNull(),
+    serviceCategory: text("service_category", {
+      enum: CUSTOMER_SERVICE_CATEGORIES,
+    }),
+    /** Total amount charged for this service, in INR. */
+    totalCost: real("total_cost"),
+    /** Profit earned on this service, in INR. May be negative for a loss. */
+    profit: real("profit"),
+    /** Date the service was delivered, stored as YYYY-MM-DD. */
+    serviceDeliveredOn: text("service_delivered_on"),
+    /** Optional next renewal date, stored as YYYY-MM-DD. */
+    renewalOn: text("renewal_on"),
+    /**
+     * The renewal date for which the Telegram reminder was already delivered.
+     * Comparing it with renewalOn keeps the sweep idempotent and re-arms the
+     * reminder automatically when the renewal date changes.
+     */
+    renewalReminderFor: text("renewal_reminder_for"),
+    renewalReminderSentAt: text("renewal_reminder_sent_at"),
+    renewalReminderAttemptedAt: text("renewal_reminder_attempted_at"),
+    renewalReminderError: text("renewal_reminder_error"),
+    createdBy: text("created_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: text("created_at").notNull().default(nowSql),
+    updatedAt: text("updated_at").notNull().default(nowSql),
+  },
+  (table) => [
+    index("customer_services_customer_id_idx").on(table.customerId),
+    index("customer_services_renewal_on_idx").on(table.renewalOn),
+    index("customer_services_reminder_idx").on(
+      table.renewalOn,
+      table.renewalReminderFor,
+    ),
+    index("customer_services_created_at_idx").on(table.createdAt),
+    check(
+      "customer_services_service_name_length_check",
+      sql`length(${table.serviceName}) between 1 and 160`,
+    ),
+    check(
+      "customer_services_service_category_check",
+      sql`${table.serviceCategory} is null or ${table.serviceCategory} in (${customerServiceCategorySql})`,
+    ),
+    check(
+      "customer_services_total_cost_check",
+      sql`${table.totalCost} is null or ${table.totalCost} >= 0`,
+    ),
+    check(
+      "customer_services_service_delivered_on_check",
+      sql`${table.serviceDeliveredOn} is null or date(${table.serviceDeliveredOn}) = ${table.serviceDeliveredOn}`,
+    ),
+    check(
+      "customer_services_renewal_on_check",
+      sql`${table.renewalOn} is null or date(${table.renewalOn}) = ${table.renewalOn}`,
+    ),
+  ],
+);
+
 export const customerContacts = sqliteTable(
   "customer_contacts",
   {
@@ -700,6 +765,8 @@ export type LeadFollowUpRow = typeof leadFollowUps.$inferSelect;
 export type NewLeadFollowUpRow = typeof leadFollowUps.$inferInsert;
 export type CustomerRow = typeof customers.$inferSelect;
 export type NewCustomerRow = typeof customers.$inferInsert;
+export type CustomerServiceRow = typeof customerServices.$inferSelect;
+export type NewCustomerServiceRow = typeof customerServices.$inferInsert;
 export type CustomerContactRow = typeof customerContacts.$inferSelect;
 export type NewCustomerContactRow = typeof customerContacts.$inferInsert;
 export type CustomerActivityRow = typeof customerActivities.$inferSelect;

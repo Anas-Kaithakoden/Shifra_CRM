@@ -6,6 +6,7 @@ import type {
   CustomerDto,
   CustomerLeadDto,
   CustomerListItemDto,
+  CustomerServiceDto,
   CustomerUserSummary,
   DuplicateCustomerDto,
   CustomerDuplicateMatch,
@@ -18,6 +19,7 @@ import type {
 import type {
   CustomerContactRow,
   CustomerActivityRow,
+  CustomerServiceRow,
 } from "../db/schema";
 
 function toUserSummary(

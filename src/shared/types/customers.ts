@@ -30,6 +30,92 @@ export interface CustomerContactDto {
   updatedAt: string;
 }
 
+export interface CustomerServiceDto {
+  id: string;
+  customerId: string;
+  serviceName: string;
+  serviceCategory: CustomerServiceCategory | null;
+  totalCost: number | null;
+  profit: number | null;
+  serviceDeliveredOn: string | null;
+  renewalOn: string | null;
+  renewalReminderFor: string | null;
+  renewalReminderSentAt: string | null;
+  renewalReminderAttemptedAt: string | null;
+  renewalReminderError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerServiceInput {
+  serviceName: string;
+  serviceCategory?: CustomerServiceCategory;
+  totalCost?: number;
+  profit?: number;
+  serviceDeliveredOn?: string;
+  renewalOn?: string;
+}
+
+export interface CustomerServiceUpdateInput {
+  serviceName?: string;
+  serviceCategory?: CustomerServiceCategory | null;
+  totalCost?: number | null;
+  profit?: number | null;
+  serviceDeliveredOn?: string | null;
+  renewalOn?: string | null;
+}
+
+export type RenewalFilter =
+  | "all"
+  | "overdue"
+  | "due_soon"
+  | "upcoming"
+  | "next_30";
+
+export type RenewalStatus = "overdue" | "due_soon" | "upcoming";
+
+export type RenewalReminderStatus = "sent" | "pending" | "failed";
+
+export interface CustomerRenewalDto {
+  serviceId: string;
+  customerId: string;
+  customerNumber: string;
+  customerName: string;
+  businessName: string | null;
+  customerStatus: CustomerStatus;
+  customerPhone: string;
+  customerEmail: string | null;
+  assignedToName: string | null;
+  serviceName: string;
+  serviceCategory: CustomerServiceCategory | null;
+  totalCost: number | null;
+  profit: number | null;
+  renewalOn: string;
+  daysUntilRenewal: number;
+  status: RenewalStatus;
+  reminderStatus: RenewalReminderStatus;
+  reminderSentAt: string | null;
+  reminderError: string | null;
+}
+
+export interface CustomerRenewalCounts {
+  overdue: number;
+  dueSoon: number;
+  upcoming: number;
+  total: number;
+}
+
+export interface CustomerRenewalListDto {
+  items: CustomerRenewalDto[];
+  counts: CustomerRenewalCounts;
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export interface CustomerDto {
   id: string;
   customerNumber: string;
@@ -123,6 +209,7 @@ export interface CustomerDetailDto extends CustomerDto {
   contacts: CustomerContactDto[];
   primaryContact: CustomerContactDto | null;
   leads: CustomerLeadDto[];
+  services: CustomerServiceDto[];
   stats: CustomerSummaryCounts;
   lastActivityAt: string | null;
 }
