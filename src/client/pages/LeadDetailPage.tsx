@@ -498,6 +498,68 @@ export function LeadDetailPage() {
         </div>
       ) : null}
 
+      <Card>
+        <CardHeader
+          title="Quick actions"
+          description="Keep the lead moving."
+        />
+        <CardBody className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          {canStage ? (
+            <Button
+              onClick={openStageModal}
+              leftIcon={<RotateCcw className="h-4 w-4" aria-hidden="true" />}
+              className="h-auto min-h-10 whitespace-normal px-2 py-2 text-xs"
+            >
+              Change stage
+            </Button>
+          ) : null}
+          {canSchedule ? (
+            <Button
+              variant="outline"
+              onClick={() => setFollowUpOpen(true)}
+              leftIcon={
+                <CalendarClock className="h-4 w-4" aria-hidden="true" />
+              }
+              className="h-auto min-h-10 whitespace-normal px-2 py-2 text-xs"
+            >
+              Schedule follow-up
+            </Button>
+          ) : null}
+          {canConvert ? (
+            <Button
+              variant="outline"
+              onClick={() => setConvertOpen(true)}
+              leftIcon={<UserPlus className="h-4 w-4" aria-hidden="true" />}
+              className="h-auto min-h-10 whitespace-normal px-2 py-2 text-xs"
+            >
+              Convert to customer
+            </Button>
+          ) : null}
+          {canEdit ? (
+            <Button
+              variant="outline"
+              onClick={() => setInteractionOpen(true)}
+              leftIcon={
+                <MessageCircle className="h-4 w-4" aria-hidden="true" />
+              }
+              className="h-auto min-h-10 whitespace-normal px-2 py-2 text-xs"
+            >
+              Log interaction
+            </Button>
+          ) : null}
+          {canEdit ? (
+            <Button
+              variant="outline"
+              onClick={() => setNoteOpen(true)}
+              leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}
+              className="h-auto min-h-10 whitespace-normal px-2 py-2 text-xs"
+            >
+              Add note
+            </Button>
+          ) : null}
+        </CardBody>
+      </Card>
+
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <Card>
@@ -621,64 +683,6 @@ export function LeadDetailPage() {
         </div>
 
         <div className="space-y-5">
-          <Card>
-            <CardHeader
-              title="Quick actions"
-              description="Keep the lead moving."
-            />
-            <CardBody className="grid grid-cols-2 gap-2">
-              {canEdit ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setNoteOpen(true)}
-                  leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}
-                >
-                  Add note
-                </Button>
-              ) : null}
-              {canEdit ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setInteractionOpen(true)}
-                  leftIcon={
-                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                  }
-                >
-                  Log interaction
-                </Button>
-              ) : null}
-              {canSchedule ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setFollowUpOpen(true)}
-                  leftIcon={
-                    <CalendarClock className="h-4 w-4" aria-hidden="true" />
-                  }
-                >
-                  Schedule follow-up
-                </Button>
-              ) : null}
-              {canStage ? (
-                <Button
-                  variant="outline"
-                  onClick={openStageModal}
-                  leftIcon={<RotateCcw className="h-4 w-4" aria-hidden="true" />}
-                >
-                  Change stage
-                </Button>
-              ) : null}
-              {canConvert ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setConvertOpen(true)}
-                  leftIcon={<UserPlus className="h-4 w-4" aria-hidden="true" />}
-                >
-                  Convert to customer
-                </Button>
-              ) : null}
-            </CardBody>
-          </Card>
-
           <Card>
             <CardHeader
               title="Follow-ups"
