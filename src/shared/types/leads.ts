@@ -79,6 +79,12 @@ export interface LeadFollowUpDto {
   scheduledAt: string;
   status: FollowUpStatus;
   completedAt: string | null;
+  reminderEnabled: boolean;
+  reminderMinutesBefore: number;
+  reminderStatus: "pending" | "sent" | "failed" | "skipped";
+  reminderSentAt: string | null;
+  reminderAttemptedAt: string | null;
+  reminderError: string | null;
   createdBy: string | null;
   createdByName: string | null;
   createdAt: string;

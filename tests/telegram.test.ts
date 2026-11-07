@@ -3,13 +3,14 @@ import { env } from "cloudflare:test";
 import type { TaskDto, TelegramStatusDto } from "../src/shared/types/tasks";
 import type { CustomerDetailDto } from "../src/shared/types/customers";
 import { createDb } from "../src/server/db/client";
-import { customers, tasks } from "../src/server/db/schema";
+import { customers, leadFollowUps, tasks } from "../src/server/db/schema";
 import { eq } from "drizzle-orm";
 import {
   getRenewalReminderWindow,
   getTelegramStatus,
   maskChatId,
   processCustomerRenewalReminders,
+  processLeadFollowUpReminders,
   processPendingReminders,
   remindersEnabled,
   sendTelegramMessage,
@@ -440,5 +441,119 @@ describe("Telegram Reminders & Notification Service", () => {
     const sweep3 = await processCustomerRenewalReminders(db, testEnv);
     expect(sweep3.sent).toBe(1);
     expect(sentMessages).toHaveLength(2);
+  });
+
+  it("processLeadFollowUpReminders: sends one reminder per due follow-up, skips cancelled, and is idempotent", async () => {
+    const db = createDb(env.DB);
+    const owner = await createUser({ role: "owner" });
+    const auth = await login(owner.email);
+
+    const testEnv = {
+      DB: env.DB,
+      TELEGRAM_BOT_TOKEN: "mock_token",
+      TELEGRAM_CHAT_ID: "-100123456",
+      TELEGRAM_REMINDERS_ENABLED: "true",
+      APP_URL: "https://crm.example.com",
+    };
+
+    const suffix = String(Date.now()).slice(-6);
+    const leadRes = await apiRequest("/api/leads", {
+      method: "POST",
+      auth,
+      body: {
+        name: "Reminder Lead",
+        phone: `+1 555 777 ${suffix}`,
+        email: `reminder.${suffix}@example.com`,
+        source: "Website",
+      },
+    });
+    expect(leadRes.status).toBe(201);
+    const { lead } = await parseData<{ lead: { id: string } }>(leadRes);
+
+    const createFollowUp = async (
+      title: string,
+      scheduledAt: string,
+    ): Promise<{ id: string }> => {
+      const response = await apiRequest(`/api/leads/${lead.id}/follow-ups`, {
+        method: "POST",
+        auth,
+        body: {
+          title,
+          scheduledAt,
+          reminderEnabled: true,
+          reminderMinutesBefore: 15,
+        },
+      });
+      expect(response.status).toBe(201);
+      return (await parseData<{ followUp: { id: string } }>(response)).followUp;
+    };
+
+    // Reminder time (scheduled minus 15m) is already in the past.
+    const dueNow = await createFollowUp(
+      "Call back about proposal",
+      new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    );
+    // Reminder is not due for another ~2 hours.
+    const future = await createFollowUp(
+      "Future follow-up",
+      new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    );
+    const cancelled = await createFollowUp(
+      "Cancelled follow-up",
+      new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    );
+    await apiRequest(`/api/follow-ups/${cancelled.id}/cancel`, {
+      method: "POST",
+      auth,
+      body: {},
+    });
+
+    const sentMessages: string[] = [];
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, init) => {
+      const payload = JSON.parse(String(init?.body ?? "{}")) as {
+        text?: string;
+      };
+      sentMessages.push(payload.text ?? "");
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+
+    const sweep1 = await processLeadFollowUpReminders(db, testEnv);
+    expect(sweep1.sent).toBe(1);
+    expect(sweep1.skipped).toBe(1);
+    expect(sentMessages).toHaveLength(1);
+    expect(sentMessages[0]).toContain("Call back about proposal");
+    expect(sentMessages[0]).toContain("Reminder Lead");
+    expect(sentMessages[0]).toContain("Open lead in CRM");
+
+    const dueRow = await db
+      .select()
+      .from(leadFollowUps)
+      .where(eq(leadFollowUps.id, dueNow.id))
+      .get();
+    expect(dueRow?.reminderStatus).toBe("sent");
+    expect(dueRow?.reminderSentAt).toBeTruthy();
+
+    const futureRow = await db
+      .select()
+      .from(leadFollowUps)
+      .where(eq(leadFollowUps.id, future.id))
+      .get();
+    expect(futureRow?.reminderStatus).toBe("pending");
+    expect(futureRow?.reminderSentAt).toBeNull();
+
+    const cancelledRow = await db
+      .select()
+      .from(leadFollowUps)
+      .where(eq(leadFollowUps.id, cancelled.id))
+      .get();
+    expect(cancelledRow?.reminderStatus).toBe("skipped");
+
+    // Idempotent: a second sweep sends nothing new.
+    const sweep2 = await processLeadFollowUpReminders(db, testEnv);
+    expect(sweep2.sent).toBe(0);
+    expect(sentMessages).toHaveLength(1);
   });
 });

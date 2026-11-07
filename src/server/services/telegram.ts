@@ -13,7 +13,7 @@ import type { TelegramStatusDto } from "../../shared/types/tasks";
 import { CUSTOMER_SERVICE_CATEGORY_LABELS } from "../../shared/constants/customers";
 import type { Env } from "../config";
 import type { AppDatabase } from "../db/client";
-import { customers, customerServices, tasks, type CustomerRow, type TaskRow } from "../db/schema";
+import { customers, customerServices, leadFollowUps, leads, tasks, users, type CustomerRow, type LeadFollowUpRow, type TaskRow } from "../db/schema";
 import { getCrmDayBounds, nowIso } from "../lib/time";
 
 export function remindersEnabled(env: Env): boolean {
@@ -82,20 +82,41 @@ export async function getTelegramStatus(
   const configured = remindersEnabled(env);
   const chatIdMasked = maskChatId(env.TELEGRAM_CHAT_ID);
 
-  const statsRow = await db
-    .select({
-      lastSuccessAt: sql<string | null>`max(case when ${tasks.reminderStatus} = 'sent' then ${tasks.reminderSentAt} else null end)`,
-      failedCount: sql<number>`sum(case when ${tasks.reminderStatus} = 'failed' then 1 else 0 end)`,
-    })
-    .from(tasks)
-    .get();
+  const [taskStats, followUpStats] = await Promise.all([
+    db
+      .select({
+        lastSuccessAt: sql<string | null>`max(case when ${tasks.reminderStatus} = 'sent' then ${tasks.reminderSentAt} else null end)`,
+        failedCount: sql<number>`sum(case when ${tasks.reminderStatus} = 'failed' then 1 else 0 end)`,
+      })
+      .from(tasks)
+      .get(),
+    db
+      .select({
+        lastSuccessAt: sql<string | null>`max(case when ${leadFollowUps.reminderStatus} = 'sent' then ${leadFollowUps.reminderSentAt} else null end)`,
+        failedCount: sql<number>`sum(case when ${leadFollowUps.reminderStatus} = 'failed' then 1 else 0 end)`,
+      })
+      .from(leadFollowUps)
+      .get(),
+  ]);
+
+  const lastSuccessCandidates = [
+    taskStats?.lastSuccessAt,
+    followUpStats?.lastSuccessAt,
+  ].filter((value): value is string => Boolean(value));
+  const lastSuccessAt =
+    lastSuccessCandidates.length > 0
+      ? lastSuccessCandidates.sort().at(-1) ?? null
+      : null;
+  const failedCount =
+    Number(taskStats?.failedCount ?? 0) +
+    Number(followUpStats?.failedCount ?? 0);
 
   if (!configured) {
     return {
       configured: false,
       status: "not_configured",
-      lastSuccessAt: statsRow?.lastSuccessAt ?? null,
-      failedCount: statsRow?.failedCount ?? 0,
+      lastSuccessAt,
+      failedCount,
       chatIdMasked: null,
     };
   }
@@ -114,8 +135,8 @@ export async function getTelegramStatus(
       return {
         configured: true,
         status: "configured",
-        lastSuccessAt: statsRow?.lastSuccessAt ?? null,
-        failedCount: statsRow?.failedCount ?? 0,
+        lastSuccessAt,
+        failedCount,
         chatIdMasked,
         botUsername: data.result?.username ? `@${data.result.username}` : null,
       };
@@ -124,8 +145,8 @@ export async function getTelegramStatus(
     return {
       configured: true,
       status: "error",
-      lastSuccessAt: statsRow?.lastSuccessAt ?? null,
-      failedCount: statsRow?.failedCount ?? 0,
+      lastSuccessAt,
+      failedCount,
       chatIdMasked,
       error: data.description ?? `Telegram API error (${res.status})`,
     };
@@ -133,8 +154,8 @@ export async function getTelegramStatus(
     return {
       configured: true,
       status: "error",
-      lastSuccessAt: statsRow?.lastSuccessAt ?? null,
-      failedCount: statsRow?.failedCount ?? 0,
+      lastSuccessAt,
+      failedCount,
       chatIdMasked,
       error: error instanceof Error ? error.message : "Connection failed",
     };
@@ -250,6 +271,156 @@ export async function processPendingReminders(
           updatedAt: now,
         })
         .where(eq(tasks.id, t.id));
+      failed += 1;
+    }
+  }
+
+  return { sent, failed, skipped };
+}
+
+const LEAD_FOLLOW_UP_RETRY_BACKOFF_MS = 5 * 60 * 1000;
+
+export function formatLeadFollowUpReminderMessage(
+  followUp: Pick<
+    LeadFollowUpRow,
+    "title" | "scheduledAt" | "notes" | "reminderMinutesBefore"
+  >,
+  lead: { id: string; name: string; leadNumber: string; phone: string },
+  assignedToName: string | null,
+  appUrl?: string,
+): string {
+  const lines = [
+    "🔔 <b>Shifra Nuha CRM — Follow-up Reminder</b>",
+    "",
+    `📋 <b>Follow-up:</b> ${escapeHtml(followUp.title)}`,
+    `🏢 <b>Lead:</b> ${escapeHtml(lead.name)} (${escapeHtml(lead.leadNumber)})`,
+    `📞 <b>Phone:</b> ${escapeHtml(lead.phone)}`,
+    `⏰ <b>Scheduled:</b> ${escapeHtml(followUp.scheduledAt)}`,
+    `⏱ <b>Reminder:</b> ${followUp.reminderMinutesBefore} minutes before`,
+  ];
+
+  if (assignedToName) {
+    lines.push(`👤 <b>Owner:</b> ${escapeHtml(assignedToName)}`);
+  }
+
+  if (followUp.notes) {
+    lines.push("", `📝 <b>Notes:</b> ${escapeHtml(followUp.notes)}`);
+  }
+
+  if (appUrl) {
+    lines.push(
+      "",
+      `🔗 <a href="${escapeHtml(`${appUrl}/leads/${lead.id}`)}">Open lead in CRM</a>`,
+    );
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Sends one Telegram reminder per pending lead follow-up at
+ * `scheduled_at - reminder_minutes_before`. Delivery is idempotent (the sent
+ * timestamp suppresses repeat sends) and failed attempts retry after a short
+ * backoff. Completed or cancelled follow-ups are marked skipped.
+ */
+export async function processLeadFollowUpReminders(
+  db: AppDatabase,
+  env: Env,
+): Promise<{ sent: number; failed: number; skipped: number }> {
+  if (!remindersEnabled(env)) {
+    return { sent: 0, failed: 0, skipped: 0 };
+  }
+
+  const now = nowIso();
+  const nowMs = Date.now();
+
+  const candidates = await db
+    .select({
+      followUp: leadFollowUps,
+      lead: {
+        id: leads.id,
+        name: leads.name,
+        leadNumber: leads.leadNumber,
+        phone: leads.phone,
+      },
+      assignedUserName: users.fullName,
+    })
+    .from(leadFollowUps)
+    .innerJoin(leads, eq(leadFollowUps.leadId, leads.id))
+    .leftJoin(users, eq(leadFollowUps.assignedTo, users.id))
+    .where(
+      and(
+        eq(leadFollowUps.reminderEnabled, true),
+        inArray(leadFollowUps.reminderStatus, ["pending", "failed"]),
+        isNull(leadFollowUps.reminderSentAt),
+        isNull(leads.deletedAt),
+      ),
+    )
+    .all();
+
+  let sent = 0;
+  let failed = 0;
+  let skipped = 0;
+
+  for (const row of candidates) {
+    const followUp = row.followUp;
+
+    // Completed or cancelled follow-ups no longer need a reminder.
+    if (followUp.status === "completed" || followUp.status === "cancelled") {
+      await db
+        .update(leadFollowUps)
+        .set({ reminderStatus: "skipped", updatedAt: now })
+        .where(eq(leadFollowUps.id, followUp.id));
+      skipped += 1;
+      continue;
+    }
+
+    const dueMs = new Date(followUp.scheduledAt).getTime();
+    const reminderAtMs =
+      dueMs - (followUp.reminderMinutesBefore ?? 0) * 60 * 1000;
+
+    if (nowMs < reminderAtMs) {
+      // Not due yet.
+      continue;
+    }
+
+    if (followUp.reminderStatus === "failed" && followUp.reminderAttemptedAt) {
+      const lastAttemptMs = new Date(followUp.reminderAttemptedAt).getTime();
+      if (nowMs - lastAttemptMs < LEAD_FOLLOW_UP_RETRY_BACKOFF_MS) {
+        continue;
+      }
+    }
+
+    const message = formatLeadFollowUpReminderMessage(
+      followUp,
+      row.lead,
+      row.assignedUserName ?? null,
+      env.APP_URL,
+    );
+    const result = await sendTelegramMessage(env, message);
+
+    if (result.ok) {
+      await db
+        .update(leadFollowUps)
+        .set({
+          reminderStatus: "sent",
+          reminderSentAt: now,
+          reminderAttemptedAt: now,
+          reminderError: null,
+          updatedAt: now,
+        })
+        .where(eq(leadFollowUps.id, followUp.id));
+      sent += 1;
+    } else {
+      await db
+        .update(leadFollowUps)
+        .set({
+          reminderStatus: "failed",
+          reminderAttemptedAt: now,
+          reminderError: result.error ?? "Failed to send message",
+          updatedAt: now,
+        })
+        .where(eq(leadFollowUps.id, followUp.id));
       failed += 1;
     }
   }

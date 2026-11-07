@@ -203,6 +203,12 @@ record. The lead's `next_follow_up_at` is kept in sync with the earliest pending
 follow-up. Rescheduling writes a `lead.follow_up_rescheduled` activity; other
 edits write `lead.follow_up_updated`.
 
+Each follow-up has a Telegram reminder that is enabled by default (15 minutes
+before the scheduled time). The cron sweep sends one message per follow-up,
+marks it sent, retries failures with a short backoff, and re-arms it whenever
+the schedule or reminder offset changes. Reminders can be turned off when
+scheduling the follow-up.
+
 ### Duplicate detection
 
 Phone numbers are normalised to digits (without assuming a country code) and
@@ -544,7 +550,9 @@ Tasks & Follow-ups + Telegram reminder module:
 The Worker runs a scheduled cron (`* * * * *`, see `wrangler.jsonc`) that calls
 the reminder sweep: it computes `reminder_at = due_at - reminder_minutes_before`,
 skips completed/cancelled/already-sent tasks, retries failed sends with backoff,
-and stores delivery status without exposing secrets to the frontend.
+and stores delivery status without exposing secrets to the frontend. The same
+sweep delivers lead follow-up reminders from `lead_follow_ups` and customer
+renewal reminders.
 
 `migrations/0006_customer_service_financials.sql` adds nullable customer fields
 for total cost, profit, service delivery date, and renewal date.

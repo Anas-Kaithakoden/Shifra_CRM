@@ -171,6 +171,7 @@ export async function createFollowUpForActor(
   );
 
   const now = nowIso();
+  const reminderEnabled = input.reminderEnabled ?? true;
   const followUp = await insertFollowUp(db, {
     id: newId(),
     leadId,
@@ -180,6 +181,12 @@ export async function createFollowUpForActor(
     scheduledAt: input.scheduledAt,
     status: "pending",
     completedAt: null,
+    reminderEnabled,
+    reminderMinutesBefore: input.reminderMinutesBefore ?? 15,
+    reminderStatus: reminderEnabled ? "pending" : "skipped",
+    reminderSentAt: null,
+    reminderAttemptedAt: null,
+    reminderError: null,
     createdBy: actor.id,
     createdAt: now,
     updatedAt: now,
@@ -244,11 +251,45 @@ export async function updateFollowUpForActor(
     changedFields.push("notes");
   }
 
+  if (
+    input.reminderEnabled !== undefined &&
+    input.reminderEnabled !== followUp.reminderEnabled
+  ) {
+    updates.reminderEnabled = input.reminderEnabled;
+    updates.reminderStatus = input.reminderEnabled ? "pending" : "skipped";
+    updates.reminderSentAt = null;
+    updates.reminderAttemptedAt = null;
+    updates.reminderError = null;
+    changedFields.push("reminderEnabled");
+  }
+
+  if (
+    input.reminderMinutesBefore !== undefined &&
+    input.reminderMinutesBefore !== followUp.reminderMinutesBefore
+  ) {
+    updates.reminderMinutesBefore = input.reminderMinutesBefore;
+    changedFields.push("reminderMinutesBefore");
+  }
+
+  const nextReminderEnabled = input.reminderEnabled ?? followUp.reminderEnabled;
+
   const rescheduled =
     input.scheduledAt !== undefined && input.scheduledAt !== followUp.scheduledAt;
   if (rescheduled) {
     updates.scheduledAt = input.scheduledAt;
     changedFields.push("scheduledAt");
+  }
+
+  // Re-arm the reminder whenever the schedule or offset changes so the new
+  // timing is honoured. A previously delivered reminder must not suppress it.
+  if (
+    nextReminderEnabled &&
+    (rescheduled || updates.reminderMinutesBefore !== undefined)
+  ) {
+    updates.reminderStatus = "pending";
+    updates.reminderSentAt = null;
+    updates.reminderAttemptedAt = null;
+    updates.reminderError = null;
   }
 
   if (input.assignedTo !== undefined) {

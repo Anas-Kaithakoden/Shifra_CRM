@@ -171,6 +171,16 @@ export function toLeadFollowUpDto(
     scheduledAt: row.followUp.scheduledAt,
     status: row.followUp.status,
     completedAt: row.followUp.completedAt,
+    reminderEnabled: row.followUp.reminderEnabled,
+    reminderMinutesBefore: row.followUp.reminderMinutesBefore,
+    reminderStatus: row.followUp.reminderStatus as
+      | "pending"
+      | "sent"
+      | "failed"
+      | "skipped",
+    reminderSentAt: row.followUp.reminderSentAt,
+    reminderAttemptedAt: row.followUp.reminderAttemptedAt,
+    reminderError: row.followUp.reminderError,
     createdBy: row.followUp.createdBy,
     createdByName: row.createdByUser?.fullName ?? null,
     createdAt: row.followUp.createdAt,

@@ -33,6 +33,8 @@ export interface FollowUpUpdateInput {
   notes?: string | null;
   scheduledAt?: string;
   assignedTo?: string | null;
+  reminderEnabled?: boolean;
+  reminderMinutesBefore?: number;
 }
 
 function toQuery(params: Record<string, string | number | undefined>) {

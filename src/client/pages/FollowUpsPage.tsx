@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Bell,
   CalendarClock,
   CalendarCheck2,
   CalendarDays,
@@ -15,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { PERMISSIONS } from "../../shared/types/permissions";
+import { REMINDER_MINUTES_OPTIONS } from "../../shared/constants/tasks";
 import type { LeadFollowUpDto } from "../../shared/types/leads";
 import { useAuth } from "../hooks/useAuth";
 import { useDebounce } from "../hooks/useDebounce";
@@ -39,6 +41,7 @@ import {
   Modal,
   PageHeader,
   Pagination,
+  Select,
   Skeleton,
   Textarea,
 } from "../components/ui";
@@ -134,6 +137,10 @@ export function FollowUpsPage() {
   const [rescheduleValue, setRescheduleValue] = useState(
     defaultFollowUpDateTimeValue,
   );
+  const [rescheduleReminderEnabled, setRescheduleReminderEnabled] =
+    useState(true);
+  const [rescheduleReminderMinutes, setRescheduleReminderMinutes] =
+    useState(15);
   const [cancelTarget, setCancelTarget] = useState<LeadFollowUpDto | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
@@ -202,10 +209,13 @@ export function FollowUpsPage() {
 
   const rescheduleMutation = useMutation({
     mutationFn: () =>
-      followUpsService.reschedule(
-        rescheduleTarget?.id ?? "",
-        fromDateTimeInputValue(rescheduleValue),
-      ),
+      followUpsService.update(rescheduleTarget?.id ?? "", {
+        scheduledAt: fromDateTimeInputValue(rescheduleValue),
+        reminderEnabled: rescheduleReminderEnabled,
+        reminderMinutesBefore: rescheduleReminderEnabled
+          ? rescheduleReminderMinutes
+          : undefined,
+      }),
     onSuccess: () => {
       toast({ title: "Follow-up rescheduled", variant: "success" });
       setRescheduleTarget(null);
@@ -247,6 +257,8 @@ export function FollowUpsPage() {
       toDateTimeInputValue(followUp.scheduledAt) ||
         defaultFollowUpDateTimeValue(),
     );
+    setRescheduleReminderEnabled(followUp.reminderEnabled);
+    setRescheduleReminderMinutes(followUp.reminderMinutesBefore);
   };
 
   const handleRescheduleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -433,6 +445,30 @@ export function FollowUpsPage() {
                           {followUp.assignedToName ? (
                             <span>Owner: {followUp.assignedToName}</span>
                           ) : null}
+                          {followUp.status === "pending" &&
+                          followUp.reminderEnabled ? (
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1 font-medium",
+                                followUp.reminderStatus === "failed"
+                                  ? "text-rose-600"
+                                  : "text-brand-700",
+                              )}
+                              title={
+                                followUp.reminderStatus === "failed"
+                                  ? (followUp.reminderError ??
+                                    "Reminder delivery failed")
+                                  : "Telegram reminder enabled"
+                              }
+                            >
+                              <Bell className="h-3 w-3" aria-hidden="true" />
+                              {followUp.reminderStatus === "sent"
+                                ? "Reminder sent"
+                                : followUp.reminderMinutesBefore === 0
+                                  ? "Reminder at start"
+                                  : `Reminder ${followUp.reminderMinutesBefore}m before`}
+                            </span>
+                          ) : null}
                         </div>
                         {followUp.notes ? (
                           <p className="max-w-2xl whitespace-pre-line text-xs text-slate-500">
@@ -598,6 +634,38 @@ export function FollowUpsPage() {
             onChange={(event) => setRescheduleValue(event.target.value)}
             required
           />
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={rescheduleReminderEnabled}
+                onChange={(event) =>
+                  setRescheduleReminderEnabled(event.target.checked)
+                }
+                className="rounded text-brand-600 focus:ring-brand-500"
+              />
+              <span className="text-xs font-medium text-slate-800">
+                Send Telegram reminder
+              </span>
+            </label>
+
+            {rescheduleReminderEnabled ? (
+              <div className="pl-6">
+                <Select
+                  value={String(rescheduleReminderMinutes)}
+                  onChange={(event) =>
+                    setRescheduleReminderMinutes(Number(event.target.value))
+                  }
+                >
+                  {REMINDER_MINUTES_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
+          </div>
           <p className="text-xs text-slate-500">
             The previous schedule stays visible in the activity timeline.
           </p>

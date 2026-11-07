@@ -130,6 +130,10 @@ describe("follow-up lifecycle", () => {
     expect(followUp.leadId).toBe(lead.id);
     expect(followUp.leadName).toBe("Scheduled lead");
     expect(followUp.assignedTo).toBe(employee.id);
+    // Reminders are enabled by default at 15 minutes before.
+    expect(followUp.reminderEnabled).toBe(true);
+    expect(followUp.reminderMinutesBefore).toBe(15);
+    expect(followUp.reminderStatus).toBe("pending");
 
     const refreshed = await getLead(auth, lead.id);
     expect(refreshed.nextFollowUpAt).toBe(followUp.scheduledAt);
@@ -337,6 +341,72 @@ describe("follow-up lifecycle", () => {
       auth,
     });
     expect(await auditResponse.text()).toContain("lead.follow_up_updated");
+  });
+
+  it("stores reminder settings, defaults them on, and re-arms on reschedule", async () => {
+    const owner = await createUser({ role: "owner" });
+    const auth = await login(owner.email);
+    const lead = await createLead(auth, { name: "Reminder lead" });
+
+    const withReminder = await createFollowUp(auth, lead.id, {
+      title: "Reminder follow-up",
+      scheduledAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      reminderEnabled: true,
+      reminderMinutesBefore: 30,
+    });
+    expect(withReminder.reminderEnabled).toBe(true);
+    expect(withReminder.reminderMinutesBefore).toBe(30);
+    expect(withReminder.reminderStatus).toBe("pending");
+    expect(withReminder.reminderSentAt).toBeNull();
+
+    const withoutReminder = await createFollowUp(auth, lead.id, {
+      title: "No reminder follow-up",
+      scheduledAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      reminderEnabled: false,
+    });
+    expect(withoutReminder.reminderEnabled).toBe(false);
+    expect(withoutReminder.reminderStatus).toBe("skipped");
+
+    const defaulted = await createFollowUp(auth, lead.id, {
+      title: "Default reminder follow-up",
+      scheduledAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+    });
+    expect(defaulted.reminderEnabled).toBe(true);
+    expect(defaulted.reminderMinutesBefore).toBe(15);
+
+    const nextWeek = new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const rescheduleResponse = await apiRequest(
+      `/api/follow-ups/${withReminder.id}/reschedule`,
+      {
+        method: "POST",
+        auth,
+        body: { scheduledAt: nextWeek },
+      },
+    );
+    expect(rescheduleResponse.status).toBe(200);
+    const rescheduled = await parseData<{ followUp: LeadFollowUpDto }>(
+      rescheduleResponse,
+    );
+    expect(rescheduled.followUp.scheduledAt).toBe(nextWeek);
+    expect(rescheduled.followUp.reminderStatus).toBe("pending");
+    expect(rescheduled.followUp.reminderSentAt).toBeNull();
+
+    const disableResponse = await apiRequest(
+      `/api/follow-ups/${defaulted.id}`,
+      {
+        method: "PATCH",
+        auth,
+        body: { reminderEnabled: false },
+      },
+    );
+    expect(disableResponse.status).toBe(200);
+    const disabled = await parseData<{ followUp: LeadFollowUpDto }>(
+      disableResponse,
+    );
+    expect(disabled.followUp.reminderEnabled).toBe(false);
+    expect(disabled.followUp.reminderStatus).toBe("skipped");
   });
 });
 

@@ -3,6 +3,7 @@ import type { Env } from "./config";
 import { createDb } from "./db/client";
 import {
   processCustomerRenewalReminders,
+  processLeadFollowUpReminders,
   processPendingReminders,
   remindersEnabled,
 } from "./services/telegram";
@@ -18,6 +19,7 @@ export default {
         const db = createDb(env.DB);
         await Promise.all([
           processPendingReminders(db, env),
+          processLeadFollowUpReminders(db, env),
           processCustomerRenewalReminders(db, env),
         ]);
       })(),

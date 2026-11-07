@@ -85,6 +85,8 @@ export interface LeadFollowUpInput {
   notes?: string;
   scheduledAt: string;
   assignedTo?: string;
+  reminderEnabled?: boolean;
+  reminderMinutesBefore?: number;
 }
 
 export interface PipelineParams {

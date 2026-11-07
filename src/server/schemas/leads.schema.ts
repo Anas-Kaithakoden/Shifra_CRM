@@ -226,6 +226,13 @@ export const createFollowUpSchema = z.object({
   notes: optionalTrimmedText(5000, "Notes"),
   scheduledAt: isoDateTimeSchema,
   assignedTo: z.uuid("Choose a valid employee.").optional(),
+  reminderEnabled: z.boolean().default(true),
+  reminderMinutesBefore: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(10080)
+    .optional(),
 });
 
 export const updateFollowUpSchema = z
@@ -239,6 +246,13 @@ export const updateFollowUpSchema = z
     notes: nullableTrimmedText(5000, "Notes"),
     scheduledAt: isoDateTimeSchema.optional(),
     assignedTo: z.uuid("Choose a valid employee.").nullable().optional(),
+    reminderEnabled: z.boolean().optional(),
+    reminderMinutesBefore: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(10080)
+      .optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "Provide at least one field to update.",

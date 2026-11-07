@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PERMISSIONS } from "../../../shared/types/permissions";
+import { REMINDER_MINUTES_OPTIONS } from "../../../shared/constants/tasks";
 import type { LeadFollowUpDto } from "../../../shared/types/leads";
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../hooks/useToast";
@@ -34,6 +35,8 @@ export function FollowUpForm({
   const [notes, setNotes] = useState("");
   const [scheduledAt, setScheduledAt] = useState(defaultFollowUpDateTimeValue);
   const [assignedTo, setAssignedTo] = useState(defaultAssignedTo ?? "");
+  const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [reminderMinutesBefore, setReminderMinutesBefore] = useState(15);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -53,6 +56,8 @@ export function FollowUpForm({
     setNotes("");
     setScheduledAt(defaultFollowUpDateTimeValue());
     setAssignedTo(defaultAssignedTo ?? "");
+    setReminderEnabled(true);
+    setReminderMinutesBefore(15);
     setFieldErrors({});
     setFormError(null);
   }, [open, defaultAssignedTo]);
@@ -82,6 +87,8 @@ export function FollowUpForm({
         notes: notes.trim() || undefined,
         scheduledAt: fromDateTimeInputValue(scheduledAt),
         assignedTo: canAssign && assignedTo ? assignedTo : undefined,
+        reminderEnabled,
+        reminderMinutesBefore: reminderEnabled ? reminderMinutesBefore : undefined,
       });
       toast({ title: "Follow-up scheduled", variant: "success" });
       void queryClient.invalidateQueries({ queryKey: ["leads"] });
@@ -165,6 +172,36 @@ export function FollowUpForm({
             ))}
           </Select>
         ) : null}
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={reminderEnabled}
+              onChange={(event) => setReminderEnabled(event.target.checked)}
+              className="rounded text-brand-600 focus:ring-brand-500"
+            />
+            <span className="text-xs font-medium text-slate-800">
+              Send Telegram reminder
+            </span>
+          </label>
+
+          {reminderEnabled ? (
+            <div className="pl-6">
+              <Select
+                value={String(reminderMinutesBefore)}
+                onChange={(event) =>
+                  setReminderMinutesBefore(Number(event.target.value))
+                }
+              >
+                {REMINDER_MINUTES_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
+        </div>
         <Textarea
           label="Notes"
           value={notes}

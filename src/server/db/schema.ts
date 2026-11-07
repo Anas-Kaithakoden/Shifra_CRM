@@ -588,6 +588,16 @@ export const leadFollowUps = sqliteTable(
       .notNull()
       .default("pending"),
     completedAt: text("completed_at"),
+    reminderEnabled: integer("reminder_enabled", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    reminderMinutesBefore: integer("reminder_minutes_before")
+      .notNull()
+      .default(15),
+    reminderStatus: text("reminder_status").notNull().default("pending"),
+    reminderSentAt: text("reminder_sent_at"),
+    reminderAttemptedAt: text("reminder_attempted_at"),
+    reminderError: text("reminder_error"),
     createdBy: text("created_by").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -604,9 +614,18 @@ export const leadFollowUps = sqliteTable(
       table.scheduledAt,
     ),
     index("lead_follow_ups_created_by_idx").on(table.createdBy),
+    index("lead_follow_ups_reminder_idx").on(
+      table.reminderEnabled,
+      table.reminderStatus,
+      table.scheduledAt,
+    ),
     check(
       "lead_follow_ups_status_check",
       sql`${table.status} in (${followUpStatusSql})`,
+    ),
+    check(
+      "lead_follow_ups_reminder_status_check",
+      sql`${table.reminderStatus} in ('pending', 'sent', 'failed', 'skipped')`,
     ),
     check(
       "lead_follow_ups_title_length_check",
