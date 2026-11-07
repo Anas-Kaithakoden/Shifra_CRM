@@ -76,8 +76,14 @@ export function TelegramStatusCard({
       />
 
       <CardBody className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div
+          className={
+            compact
+              ? "flex flex-col gap-3"
+              : "flex flex-wrap items-center justify-between gap-3"
+          }
+        >
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             {isConfigured ? (
               <Badge variant="success" className="gap-1">
                 <CheckCircle2 className="h-3.5 w-3.5" />
@@ -95,7 +101,7 @@ export function TelegramStatusCard({
               </Badge>
             )}
             {status?.botUsername ? (
-              <span className="text-xs font-mono font-medium text-slate-600">
+              <span className="truncate text-xs font-mono font-medium text-slate-600">
                 {status.botUsername}
               </span>
             ) : null}
@@ -107,7 +113,7 @@ export function TelegramStatusCard({
             disabled={!status?.configured || testMutation.isPending}
             isLoading={testMutation.isPending}
             onClick={() => testMutation.mutate()}
-            className="gap-1.5"
+            className={compact ? "w-full gap-1.5" : "gap-1.5"}
           >
             <Send className="h-3.5 w-3.5" />
             Send test message
